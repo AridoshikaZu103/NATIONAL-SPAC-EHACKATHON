@@ -35,13 +35,8 @@ export default function SpaceScene() {
       >
         <color attach="background" args={['#030014']} />
 
-        {/* Lighting */}
         <ambientLight intensity={0.15} />
-        <directionalLight
-          position={[10, 8, 5]}
-          intensity={1.2}
-          color="#ffffff"
-        />
+        <directionalLight position={[10, 8, 5]} intensity={1.2} color="#ffffff" />
         <pointLight position={[-5, 3, -3]} intensity={0.5} color="#7b2ff7" />
         <pointLight position={[6, -2, 4]} intensity={0.3} color="#00d4ff" />
 
@@ -53,7 +48,6 @@ export default function SpaceScene() {
           <Astronaut />
         </Suspense>
 
-        {/* Post-processing */}
         <EffectComposer>
           <Bloom
             mipmapBlur
@@ -64,7 +58,6 @@ export default function SpaceScene() {
           />
         </EffectComposer>
 
-        {/* Controls */}
         <OrbitControls
           enableZoom={false}
           enablePan={false}

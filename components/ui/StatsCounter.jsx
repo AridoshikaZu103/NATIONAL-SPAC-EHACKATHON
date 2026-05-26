@@ -9,7 +9,7 @@ const stats = [
   { label: 'Countries Participating', value: 72, suffix: '', icon: '🌍' },
 ];
 
-function useCountUp(end: number, duration: number, trigger: boolean) {
+function useCountUp(end, duration, trigger) {
   const [count, setCount] = useState(0);
   useEffect(() => {
     if (!trigger) return;
@@ -29,7 +29,7 @@ function useCountUp(end: number, duration: number, trigger: boolean) {
   return count;
 }
 
-function StatItem({ stat, visible }: { stat: typeof stats[0]; visible: boolean }) {
+function StatItem({ stat, visible }) {
   const count = useCountUp(stat.value, 2000, visible);
   return (
     <div className={`stat-item ${visible ? 'stat-item--visible' : ''}`}>
@@ -51,7 +51,7 @@ function StatItem({ stat, visible }: { stat: typeof stats[0]; visible: boolean }
 
 export default function StatsCounter() {
   const [visible, setVisible] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const ref = useRef(null);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -71,7 +71,7 @@ export default function StatsCounter() {
           <p>The scale of humanity&apos;s spacefaring achievements continues to grow.</p>
         </div>
         <div className="stats-grid">
-          {stats.map((s, i) => (
+          {stats.map((s) => (
             <StatItem key={s.label} stat={s} visible={visible} />
           ))}
         </div>

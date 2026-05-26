@@ -15,8 +15,8 @@ const milestones = [
 ];
 
 export default function Timeline() {
-  const [visibleItems, setVisibleItems] = useState<Set<number>>(new Set());
-  const ref = useRef<HTMLDivElement>(null);
+  const [visibleItems, setVisibleItems] = useState(new Set());
+  const ref = useRef(null);
 
   useEffect(() => {
     const observer = new IntersectionObserver(

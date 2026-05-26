@@ -5,9 +5,9 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
 export default function GalaxySpiral() {
-  const pointsRef = useRef<THREE.Points>(null);
+  const pointsRef = useRef(null);
 
-  const { positions, colors } = useMemo(() => {
+  const { posAttr, colorAttr } = useMemo(() => {
     const count = 4000;
     const positions = new Float32Array(count * 3);
     const colors = new Float32Array(count * 3);
@@ -21,7 +21,6 @@ export default function GalaxySpiral() {
       const branchAngle = ((i % branches) / branches) * Math.PI * 2;
       const spinAngle = r * spin;
 
-      // Add randomness
       const randomX = (Math.random() - 0.5) * (r * 0.35);
       const randomY = (Math.random() - 0.5) * (r * 0.08);
       const randomZ = (Math.random() - 0.5) * (r * 0.35);
@@ -30,7 +29,6 @@ export default function GalaxySpiral() {
       positions[i3 + 1] = randomY;
       positions[i3 + 2] = Math.sin(branchAngle + spinAngle) * r + randomZ;
 
-      // Color: warm core → cool edges
       const t = r / radius;
       const innerColor = new THREE.Color('#ffcc77');
       const outerColor = new THREE.Color('#5533dd');
@@ -41,7 +39,10 @@ export default function GalaxySpiral() {
       colors[i3 + 2] = mixed.b;
     }
 
-    return { positions, colors };
+    return {
+      posAttr: new THREE.Float32BufferAttribute(positions, 3),
+      colorAttr: new THREE.Float32BufferAttribute(colors, 3),
+    };
   }, []);
 
   useFrame((_, delta) => {
@@ -54,8 +55,8 @@ export default function GalaxySpiral() {
     <group position={[-12, 4, -25]} rotation={[0.5, 0.3, 0.2]}>
       <points ref={pointsRef}>
         <bufferGeometry>
-          <bufferAttribute attach="attributes-position" args={[positions, 3]} />
-          <bufferAttribute attach="attributes-color" args={[colors, 3]} />
+          <primitive attach="attributes-position" object={posAttr} />
+          <primitive attach="attributes-color" object={colorAttr} />
         </bufferGeometry>
         <pointsMaterial
           size={0.15}
@@ -67,7 +68,6 @@ export default function GalaxySpiral() {
           toneMapped={false}
         />
       </points>
-      {/* Galaxy core glow */}
       <mesh>
         <sphereGeometry args={[0.8, 16, 16]} />
         <meshBasicMaterial

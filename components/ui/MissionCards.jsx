@@ -2,69 +2,18 @@
 
 import { useEffect, useRef, useState } from 'react';
 
-interface Mission {
-  icon: string;
-  title: string;
-  subtitle: string;
-  description: string;
-  stats: string;
-  color: string;
-}
-
-const missions: Mission[] = [
-  {
-    icon: '🛰️',
-    title: 'Chandrayaan-3',
-    subtitle: 'Lunar Exploration',
-    description: 'Historic soft landing on the lunar south pole, making India the 4th country to land on the Moon.',
-    stats: 'Launched: July 2023',
-    color: '#7b2ff7',
-  },
-  {
-    icon: '☀️',
-    title: 'Aditya-L1',
-    subtitle: 'Solar Observatory',
-    description: "India's first space-based solar observatory studying the Sun's corona from the L1 Lagrange point.",
-    stats: 'Launched: Sept 2023',
-    color: '#ffd700',
-  },
-  {
-    icon: '🔴',
-    title: 'Mangalyaan-2',
-    subtitle: 'Mars Orbiter',
-    description: 'Next-gen Mars orbiter for atmospheric studies, surface mapping, and searching for past water.',
-    stats: 'Upcoming Mission',
-    color: '#ff6b6b',
-  },
-  {
-    icon: '🌍',
-    title: 'Gaganyaan',
-    subtitle: 'Human Spaceflight',
-    description: "India's first crewed orbital spaceflight to send 3 astronauts to low Earth orbit.",
-    stats: 'In Development',
-    color: '#00d4ff',
-  },
-  {
-    icon: '🔭',
-    title: 'XPoSat',
-    subtitle: 'X-ray Polarimetry',
-    description: 'Studying cosmic X-ray sources, black holes, and neutron stars with unprecedented precision.',
-    stats: 'Launched: Jan 2024',
-    color: '#c471f5',
-  },
-  {
-    icon: '🌙',
-    title: 'LUPEX',
-    subtitle: 'Lunar Polar Exploration',
-    description: 'Joint ISRO-JAXA mission to explore the lunar south pole and investigate water ice.',
-    stats: 'Planned: 2026',
-    color: '#12d8fa',
-  },
+const missions = [
+  { icon: '🛰️', title: 'Chandrayaan-3', subtitle: 'Lunar Exploration', description: 'Historic soft landing on the lunar south pole, making India the 4th country to land on the Moon.', stats: 'Launched: July 2023', color: '#7b2ff7' },
+  { icon: '☀️', title: 'Aditya-L1', subtitle: 'Solar Observatory', description: "India's first space-based solar observatory studying the Sun's corona from the L1 Lagrange point.", stats: 'Launched: Sept 2023', color: '#ffd700' },
+  { icon: '🔴', title: 'Mangalyaan-2', subtitle: 'Mars Orbiter', description: 'Next-gen Mars orbiter for atmospheric studies, surface mapping, and searching for past water.', stats: 'Upcoming Mission', color: '#ff6b6b' },
+  { icon: '🌍', title: 'Gaganyaan', subtitle: 'Human Spaceflight', description: "India's first crewed orbital spaceflight to send 3 astronauts to low Earth orbit.", stats: 'In Development', color: '#00d4ff' },
+  { icon: '🔭', title: 'XPoSat', subtitle: 'X-ray Polarimetry', description: 'Studying cosmic X-ray sources, black holes, and neutron stars with unprecedented precision.', stats: 'Launched: Jan 2024', color: '#c471f5' },
+  { icon: '🌙', title: 'LUPEX', subtitle: 'Lunar Polar Exploration', description: 'Joint ISRO-JAXA mission to explore the lunar south pole and investigate water ice.', stats: 'Planned: 2026', color: '#12d8fa' },
 ];
 
 export default function MissionCards() {
-  const [visibleCards, setVisibleCards] = useState<Set<number>>(new Set());
-  const cardsRef = useRef<HTMLDivElement>(null);
+  const [visibleCards, setVisibleCards] = useState(new Set());
+  const cardsRef = useRef(null);
 
   useEffect(() => {
     const observer = new IntersectionObserver(

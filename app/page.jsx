@@ -1,3 +1,5 @@
+'use client';
+
 import dynamic from 'next/dynamic';
 import Navbar from '@/components/ui/Navbar';
 import HeroOverlay from '@/components/ui/HeroOverlay';
@@ -7,7 +9,6 @@ import StatsCounter from '@/components/ui/StatsCounter';
 import Footer from '@/components/ui/Footer';
 import LoadingScreen from '@/components/shared/LoadingScreen';
 
-// Dynamic import for the 3D scene — must disable SSR to avoid WebGL errors
 const SpaceScene = dynamic(() => import('@/components/scene/SpaceScene'), {
   ssr: false,
 });
@@ -17,16 +18,11 @@ export default function Home() {
     <>
       <LoadingScreen />
       <Navbar />
-
-      {/* 3D Background Scene (fixed position) */}
       <SpaceScene />
 
-      {/* Content layers above the 3D scene */}
       <main className="main-content">
-        {/* Hero Section */}
         <HeroOverlay />
 
-        {/* Scrollable Content Sections */}
         <div className="content-sections">
           <MissionCards />
           <hr className="glow-divider" />
@@ -43,7 +39,6 @@ export default function Home() {
           position: relative;
           z-index: 10;
         }
-
         .content-sections {
           position: relative;
           background: linear-gradient(

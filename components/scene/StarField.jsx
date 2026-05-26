@@ -5,9 +5,9 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
 export default function StarField() {
-  const pointsRef = useRef<THREE.Points>(null);
+  const pointsRef = useRef(null);
 
-  const { positions, colors, sizes } = useMemo(() => {
+  const { posAttr, colorAttr, sizeAttr } = useMemo(() => {
     const count = 6000;
     const positions = new Float32Array(count * 3);
     const colors = new Float32Array(count * 3);
@@ -15,7 +15,6 @@ export default function StarField() {
 
     for (let i = 0; i < count; i++) {
       const i3 = i * 3;
-      // Distribute in a sphere
       const radius = 80 + Math.random() * 120;
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(2 * Math.random() - 1);
@@ -24,20 +23,16 @@ export default function StarField() {
       positions[i3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
       positions[i3 + 2] = radius * Math.cos(phi);
 
-      // Vary star colors: white, blue-white, warm-white
       const colorChoice = Math.random();
       if (colorChoice < 0.6) {
-        // White
         colors[i3] = 0.9 + Math.random() * 0.1;
         colors[i3 + 1] = 0.9 + Math.random() * 0.1;
         colors[i3 + 2] = 1.0;
       } else if (colorChoice < 0.8) {
-        // Blue-white
         colors[i3] = 0.6 + Math.random() * 0.2;
         colors[i3 + 1] = 0.8 + Math.random() * 0.2;
         colors[i3 + 2] = 1.0;
       } else {
-        // Warm gold
         colors[i3] = 1.0;
         colors[i3 + 1] = 0.85 + Math.random() * 0.15;
         colors[i3 + 2] = 0.6 + Math.random() * 0.2;
@@ -46,7 +41,11 @@ export default function StarField() {
       sizes[i] = Math.random() * 2.5 + 0.5;
     }
 
-    return { positions, colors, sizes };
+    return {
+      posAttr: new THREE.Float32BufferAttribute(positions, 3),
+      colorAttr: new THREE.Float32BufferAttribute(colors, 3),
+      sizeAttr: new THREE.Float32BufferAttribute(sizes, 1),
+    };
   }, []);
 
   useFrame((_, delta) => {
@@ -59,18 +58,9 @@ export default function StarField() {
   return (
     <points ref={pointsRef}>
       <bufferGeometry>
-        <bufferAttribute
-          attach="attributes-position"
-          args={[positions, 3]}
-        />
-        <bufferAttribute
-          attach="attributes-color"
-          args={[colors, 3]}
-        />
-        <bufferAttribute
-          attach="attributes-size"
-          args={[sizes, 1]}
-        />
+        <primitive attach="attributes-position" object={posAttr} />
+        <primitive attach="attributes-color" object={colorAttr} />
+        <primitive attach="attributes-size" object={sizeAttr} />
       </bufferGeometry>
       <pointsMaterial
         size={1.5}

@@ -5,11 +5,10 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
 export default function Planet() {
-  const planetRef = useRef<THREE.Group>(null);
-  const atmosphereRef = useRef<THREE.Mesh>(null);
-  const cloudRef = useRef<THREE.Mesh>(null);
+  const planetRef = useRef(null);
+  const atmosphereRef = useRef(null);
+  const cloudRef = useRef(null);
 
-  // Generate procedural texture data for planet surface
   const surfaceTexture = useMemo(() => {
     const size = 256;
     const data = new Uint8Array(size * size * 4);
@@ -20,27 +19,22 @@ export default function Planet() {
         const nx = x / size;
         const ny = y / size;
 
-        // Simple procedural noise-like pattern
         const n1 = Math.sin(nx * 12 + ny * 8) * 0.5 + 0.5;
         const n2 = Math.sin(nx * 20 - ny * 15 + 3) * 0.5 + 0.5;
         const n3 = Math.sin(nx * 8 + ny * 25 - 1) * 0.5 + 0.5;
-        const mixed = (n1 * 0.5 + n2 * 0.3 + n3 * 0.2);
+        const mixed = n1 * 0.5 + n2 * 0.3 + n3 * 0.2;
 
-        // Latitude-based coloring (poles = ice, equator = warm)
         const lat = Math.abs(ny - 0.5) * 2;
 
         if (lat > 0.85) {
-          // Ice caps
           data[i] = 220;
           data[i + 1] = 230;
           data[i + 2] = 245;
         } else if (mixed > 0.55) {
-          // Land - green/brown
           data[i] = Math.floor(40 + mixed * 60);
           data[i + 1] = Math.floor(80 + mixed * 80);
           data[i + 2] = Math.floor(30 + mixed * 40);
         } else {
-          // Ocean - deep blue
           data[i] = Math.floor(10 + mixed * 30);
           data[i + 1] = Math.floor(40 + mixed * 60);
           data[i + 2] = Math.floor(120 + mixed * 100);
@@ -64,7 +58,6 @@ export default function Planet() {
       cloudRef.current.rotation.y += delta * 0.07;
     }
     if (atmosphereRef.current) {
-      // Subtle atmosphere pulse
       const scale = 1.12 + Math.sin(Date.now() * 0.001) * 0.005;
       atmosphereRef.current.scale.setScalar(scale);
     }
@@ -72,42 +65,21 @@ export default function Planet() {
 
   return (
     <group ref={planetRef} position={[3, -0.5, -2]}>
-      {/* Planet body */}
       <mesh>
         <sphereGeometry args={[2, 64, 64]} />
-        <meshStandardMaterial
-          map={surfaceTexture}
-          roughness={0.8}
-          metalness={0.1}
-        />
+        <meshStandardMaterial map={surfaceTexture} roughness={0.8} metalness={0.1} />
       </mesh>
 
-      {/* Cloud layer */}
       <mesh ref={cloudRef}>
         <sphereGeometry args={[2.03, 48, 48]} />
-        <meshStandardMaterial
-          color="#ffffff"
-          transparent
-          opacity={0.15}
-          roughness={1}
-          depthWrite={false}
-        />
+        <meshStandardMaterial color="#ffffff" transparent opacity={0.15} roughness={1} depthWrite={false} />
       </mesh>
 
-      {/* Atmosphere glow */}
       <mesh ref={atmosphereRef}>
         <sphereGeometry args={[2.25, 48, 48]} />
-        <meshBasicMaterial
-          color="#4488ff"
-          transparent
-          opacity={0.12}
-          side={THREE.BackSide}
-          depthWrite={false}
-          toneMapped={false}
-        />
+        <meshBasicMaterial color="#4488ff" transparent opacity={0.12} side={THREE.BackSide} depthWrite={false} toneMapped={false} />
       </mesh>
 
-      {/* Bright atmosphere ring for bloom */}
       <mesh>
         <sphereGeometry args={[2.15, 48, 48]} />
         <meshBasicMaterial
