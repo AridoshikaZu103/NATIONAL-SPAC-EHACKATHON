@@ -3,8 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 from dotenv import load_dotenv
 import os
-# TODO: Import orbital_mechanics when NumPy/SciPy are available
-# from api.routes import router
+from api.routes import router
 
 # Load environment variables
 load_dotenv()
@@ -23,6 +22,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Include orbital API routes
+app.include_router(router)
 
 @app.get("/")
 async def root():
