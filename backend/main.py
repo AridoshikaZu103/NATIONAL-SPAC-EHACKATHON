@@ -3,6 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 from dotenv import load_dotenv
 import os
+# TODO: Import orbital_mechanics when NumPy/SciPy are available
+# from api.routes import router
 
 # Load environment variables
 load_dotenv()
@@ -28,7 +30,7 @@ async def root():
 
 @app.get("/api/health")
 async def health():
-    return {"status": "healthy"}
+    return {"status": "healthy", "version": "0.1.0"}
 
 if __name__ == "__main__":
     port = int(os.getenv("BACKEND_PORT", 8000))
