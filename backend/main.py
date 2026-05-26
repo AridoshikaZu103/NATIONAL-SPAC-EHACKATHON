@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 from dotenv import load_dotenv
 import os
-from api.routes import router
+from .api.routes import router
 
 # Load environment variables
 load_dotenv()

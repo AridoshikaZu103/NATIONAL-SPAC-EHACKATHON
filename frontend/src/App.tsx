@@ -1,5 +1,6 @@
+import DeckMap from './components/DeckMap';
+
 import { useState } from 'react'
-import './App.css'
 
 function App() {
   const [count, setCount] = useState(0)
@@ -19,12 +20,8 @@ function App() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Ground Track Map */}
             <div className="lg:col-span-2 bg-space-dark rounded-lg border border-space-accent/20 p-4 h-96">
-              <h2 className="text-lg font-semibold text-space-accent mb-4">
-                Ground Track Map
-              </h2>
-              <div className="w-full h-full bg-space-darker rounded flex items-center justify-center">
-                <span className="text-gray-500">Map rendering area (Deck.gl)</span>
-              </div>
+              <h2 className="text-lg font-semibold text-space-accent mb-4">Ground Track Map</h2>
+              <DeckMap />
             </div>
 
             {/* Telemetry Panel */}
