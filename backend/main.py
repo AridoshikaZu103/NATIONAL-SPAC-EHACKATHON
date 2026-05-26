@@ -1,9 +1,15 @@
+import sys
+import os
+
+# Ensure backend directory is on the Python path so that
+# "python main.py" works from the backend/ directory
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 from dotenv import load_dotenv
-import os
-from .api.routes import router
+from api.routes import router
 
 # Load environment variables
 load_dotenv()
