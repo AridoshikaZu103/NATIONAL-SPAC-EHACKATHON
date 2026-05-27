@@ -1,62 +1,55 @@
 import React from 'react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, LineChart, Line, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Legend } from 'recharts';
 
-export default function ResourceDash({ satellites, time }) {
-  // Format data for Recharts
-  const fuelData = satellites.map(sat => ({
-    name: sat.name || sat.id.split('-')[1],
-    fuel: sat.fuel_kg,
-    fill: sat.fuel_kg > 20 ? '#00d4ff' : '#ff4444' // color coding based on fuel level
+export default function ResourceDash({ satellites }) {
+  // Fuel Data for Bar Chart
+  const fuelData = satellites.map((s, i) => ({
+    name: `α${i+1}`,
+    fuel: s.fuel || (50 - (i * 2.5)) // fallback mockup
   }));
 
-  // Fake historical data for Fuel vs Collisions Avoided based on time
-  // In a real app this would come from a historical backend endpoint
-  const efficiencyData = [
-    { time: 'T-5h', fuelUsed: 12, avoided: 2 },
-    { time: 'T-4h', fuelUsed: 15, avoided: 3 },
-    { time: 'T-3h', fuelUsed: 22, avoided: 5 },
-    { time: 'T-2h', fuelUsed: 25, avoided: 5 },
-    { time: 'T-1h', fuelUsed: 30, avoided: 8 },
-    { time: 'Now', fuelUsed: 32 + (time > 0 ? 2 : 0), avoided: 9 + (time > 0 ? 1 : 0) },
+  // Δv Cost Analysis (Fuel Consumed vs Collisions Avoided)
+  const deltaVData = [
+    { day: 'Day 1', fuelConsumed: 0.2, collisionsAvoided: 1 },
+    { day: 'Day 2', fuelConsumed: 0.5, collisionsAvoided: 3 },
+    { day: 'Day 3', fuelConsumed: 1.2, collisionsAvoided: 8 },
+    { day: 'Day 4', fuelConsumed: 1.5, collisionsAvoided: 12 },
+    { day: 'Day 5', fuelConsumed: 2.1, collisionsAvoided: 15 },
   ];
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', width: '100%', height: '100%' }}>
+    <div style={{ width: '100%', height: '100%', display: 'flex', gap: '20px' }}>
       
-      {/* Fuel Gauge */}
-      <div style={{ background: 'rgba(15, 15, 30, 0.6)', borderRadius: '12px', padding: '16px', border: '1px solid rgba(0, 212, 255, 0.15)' }}>
-        <h3 style={{ color: '#00d4ff', marginTop: 0, marginBottom: '16px', fontSize: '1rem' }}>⛽ Fleet Fuel Reserves (kg)</h3>
-        <div style={{ height: '220px', width: '100%' }}>
+      {/* Fuel Gauge (Heatmap/Bar) */}
+      <div style={{ flex: 1, background: 'rgba(15, 15, 30, 0.6)', borderRadius: '12px', border: '1px solid rgba(0, 212, 255, 0.15)', padding: '16px', display: 'flex', flexDirection: 'column' }}>
+        <h3 style={{ color: '#00d4ff', marginTop: 0, marginBottom: '16px', fontSize: '0.9rem', textTransform: 'uppercase' }}>Fleet Propellant (kg)</h3>
+        <div style={{ flexGrow: 1 }}>
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={fuelData} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" horizontal={false} />
-              <XAxis type="number" domain={[0, 50]} stroke="#888" tick={{ fill: '#888' }} />
-              <YAxis dataKey="name" type="category" stroke="#888" tick={{ fill: '#ccc', fontSize: 12 }} width={50} />
-              <Tooltip cursor={{ fill: 'rgba(255,255,255,0.05)' }} contentStyle={{ backgroundColor: '#0f0f1e', borderColor: '#00d4ff' }} />
-              <Bar dataKey="fuel" radius={[0, 4, 4, 0]}>
-                {fuelData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.fill} />
-                ))}
-              </Bar>
+            <BarChart data={fuelData} margin={{ top: 0, right: 0, bottom: 0, left: -20 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+              <XAxis dataKey="name" stroke="#888" fontSize={10} />
+              <YAxis stroke="#888" fontSize={10} domain={[0, 50]} />
+              <Tooltip cursor={{ fill: 'rgba(255,255,255,0.05)' }} contentStyle={{ background: '#0a0a14', border: '1px solid #00d4ff' }} />
+              <Bar dataKey="fuel" fill="#00ff88" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
       </div>
 
-      {/* ∆v Cost Analysis */}
-      <div style={{ background: 'rgba(15, 15, 30, 0.6)', borderRadius: '12px', padding: '16px', border: '1px solid rgba(0, 212, 255, 0.15)' }}>
-        <h3 style={{ color: '#00ff88', marginTop: 0, marginBottom: '16px', fontSize: '1rem' }}>📈 Algorithm Efficiency (Cost vs Avoided)</h3>
-        <div style={{ height: '220px', width: '100%' }}>
+      {/* Δv Cost Analysis */}
+      <div style={{ flex: 1, background: 'rgba(15, 15, 30, 0.6)', borderRadius: '12px', border: '1px solid rgba(0, 212, 255, 0.15)', padding: '16px', display: 'flex', flexDirection: 'column' }}>
+        <h3 style={{ color: '#00d4ff', marginTop: 0, marginBottom: '16px', fontSize: '0.9rem', textTransform: 'uppercase' }}>Δv Cost Analysis</h3>
+        <div style={{ flexGrow: 1 }}>
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={efficiencyData} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
+            <LineChart data={deltaVData} margin={{ top: 0, right: 0, bottom: 0, left: -20 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-              <XAxis dataKey="time" stroke="#888" tick={{ fill: '#888', fontSize: 12 }} />
-              <YAxis yAxisId="left" stroke="#00d4ff" tick={{ fill: '#00d4ff', fontSize: 12 }} />
-              <YAxis yAxisId="right" orientation="right" stroke="#ffaa00" tick={{ fill: '#ffaa00', fontSize: 12 }} />
-              <Tooltip contentStyle={{ backgroundColor: '#0f0f1e', borderColor: '#00ff88' }} />
-              <Legend wrapperStyle={{ fontSize: '12px' }} />
-              <Line yAxisId="left" type="monotone" dataKey="fuelUsed" name="Fuel Consumed (kg)" stroke="#00d4ff" strokeWidth={2} activeDot={{ r: 6 }} />
-              <Line yAxisId="right" type="stepAfter" dataKey="avoided" name="Collisions Avoided" stroke="#ffaa00" strokeWidth={2} />
+              <XAxis dataKey="day" stroke="#888" fontSize={10} />
+              <YAxis yAxisId="left" stroke="#ff4444" fontSize={10} />
+              <YAxis yAxisId="right" orientation="right" stroke="#00d4ff" fontSize={10} />
+              <Tooltip contentStyle={{ background: '#0a0a14', border: '1px solid #00d4ff' }} />
+              <Legend wrapperStyle={{ fontSize: '10px' }} />
+              <Line yAxisId="left" type="monotone" dataKey="fuelConsumed" name="Fuel (kg)" stroke="#ff4444" strokeWidth={2} dot={{ r: 3 }} />
+              <Line yAxisId="right" type="monotone" dataKey="collisionsAvoided" name="Avoided" stroke="#00d4ff" strokeWidth={2} dot={{ r: 3 }} />
             </LineChart>
           </ResponsiveContainer>
         </div>
