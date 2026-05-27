@@ -46,18 +46,27 @@ export function ConjunctionBullseye({ selectedSatId, threats }: { selectedSatId:
 
 export function ManeuverTimeline({ time, timeline }: { time: number, timeline: TimelineEvent[] }) {
   const satIds = ['alpha-01', 'alpha-02', 'alpha-03', 'alpha-04', 'alpha-05', 'alpha-06'];
-  const viewWindowSeconds = 3600 * 5; // Look ahead 5 hours
+  const viewWindowSeconds = 3600 * 48; // Look ahead 48 hours to catch injected threats (start at 24h)
   
+  if (timeline.length === 0) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#666', fontSize: '0.75rem' }}>
+        NO MANEUVERS SCHEDULED — INJECT THREATS ⚠ THEN STEP SIM
+      </div>
+    );
+  }
+
   return (
     <div style={{ padding: '10px 0', fontSize: '0.7rem' }}>
       <div style={{ display: 'flex', borderBottom: '1px solid rgba(0,212,255,0.2)', paddingBottom: '4px', marginBottom: '8px', color: '#00d4ff' }}>
         <div style={{ width: '40px' }}>SAT</div>
-        <div style={{ flex: 1, position: 'relative' }}>
+        <div style={{ flex: 1, position: 'relative', height: '14px' }}>
           <span style={{ position: 'absolute', left: '0%' }}>NOW</span>
-          <span style={{ position: 'absolute', left: '20%' }}>+1h</span>
-          <span style={{ position: 'absolute', left: '40%' }}>+2h</span>
-          <span style={{ position: 'absolute', left: '60%' }}>+3h</span>
-          <span style={{ position: 'absolute', left: '80%' }}>+4h</span>
+          <span style={{ position: 'absolute', left: '12.5%' }}>+6h</span>
+          <span style={{ position: 'absolute', left: '25%' }}>+12h</span>
+          <span style={{ position: 'absolute', left: '50%' }}>+24h</span>
+          <span style={{ position: 'absolute', left: '75%' }}>+36h</span>
+          <span style={{ position: 'absolute', left: '95%' }}>+48h</span>
         </div>
       </div>
       
@@ -73,19 +82,31 @@ export function ManeuverTimeline({ time, timeline }: { time: number, timeline: T
               
               {events.map((ev, i) => {
                 const leftPercent = Math.max(0, ((ev.timeStart - time) / viewWindowSeconds) * 100);
-                const widthPercent = Math.max(1, ((ev.timeEnd - Math.max(ev.timeStart, time)) / viewWindowSeconds) * 100);
+                const widthPercent = Math.max(0.5, ((ev.timeEnd - Math.max(ev.timeStart, time)) / viewWindowSeconds) * 100);
+                const isEvasion = ev.type === 'EVASION';
                 
                 return (
-                  <div key={i} style={{
+                  <div key={i} title={`${ev.type} | ${ev.satId}`} style={{
                     position: 'absolute',
                     left: `${leftPercent}%`,
                     width: `${widthPercent}%`,
                     top: '4px',
                     height: '16px',
-                    background: ev.type === 'EVASION' ? '#ff8800' : '#0088ff',
+                    background: isEvasion ? 'linear-gradient(90deg, #ff8800, #ff4400)' : 'linear-gradient(90deg, #0088ff, #00ccff)',
                     borderRadius: '2px',
-                    boxShadow: `0 0 5px ${ev.type === 'EVASION' ? '#ff880080' : '#0088ff80'}`
-                  }} />
+                    boxShadow: `0 0 6px ${isEvasion ? '#ff880080' : '#0088ff80'}`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '0.55rem',
+                    color: '#fff',
+                    fontWeight: 'bold',
+                    overflow: 'hidden',
+                    whiteSpace: 'nowrap',
+                    cursor: 'default'
+                  }}>
+                    {widthPercent > 3 ? (isEvasion ? 'EVA' : 'REC') : ''}
+                  </div>
                 );
               })}
             </div>

@@ -174,17 +174,31 @@ async def simulate_step(req: StepRequest):
                         "relVel": 14.5
                     }
                     global_state.cdms.append(cdm)
+                    
+                    # Schedule a visible EVASION window on the timeline
+                    # so the panel shows something immediately
+                    tca_time = global_state.time + thr["timeToCollision"]
+                    ev_start = tca_time - 3600  # Evasion window 1h before TCA
+                    ev_end = tca_time
+                    global_state.timeline.append({
+                        "id": f"burn-plan-{thr['id']}",
+                        "satId": target["id"],
+                        "timeStart": max(global_state.time, ev_start),
+                        "timeEnd": ev_end,
+                        "type": "EVASION"
+                    })
+                    # Schedule a RECOVERY burn after evasion
+                    global_state.timeline.append({
+                        "id": f"burn-rec-{thr['id']}",
+                        "satId": target["id"],
+                        "timeStart": ev_end,
+                        "timeEnd": ev_end + 3600,
+                        "type": "RECOVERY"
+                    })
                 
                 # Autonomously trigger maneuver if critical
                 if is_crit:
                     target["fuel_kg"] = max(0, target["fuel_kg"] - 2.5)
-                    global_state.timeline.append({
-                        "id": f"burn-ev-{global_state.time}",
-                        "satId": target["id"],
-                        "timeStart": global_state.time,
-                        "timeEnd": global_state.time + 3600,
-                        "type": "EVASION"
-                    })
                     to_remove.append(thr)
                     
     # Clean up resolved threats
