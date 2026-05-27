@@ -55,6 +55,7 @@ export interface GroundStation {
 }
 
 const GROUND_STATIONS: GroundStation[] = [
+  { id: 'IITDL', name: 'IIT Delhi', lat: 28.5, lon: 77.2 },
   { id: 'SVLBRD', name: 'Svalbard', lat: 78.2, lon: 15.6 },
   { id: 'GSSTON', name: 'Goldstone', lat: 35.3, lon: -116.8 },
   { id: 'ESTRAK', name: 'ISTRAC', lat: 13.0, lon: 77.5 },

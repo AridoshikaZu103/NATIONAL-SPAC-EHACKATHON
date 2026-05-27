@@ -3,10 +3,9 @@ import * as THREE from 'three';
 import { Satellite, Debris, Threat, GroundStation } from '../lib/SimulationEngine';
 
 interface EarthGlobeProps {
-  sim: any; // Return type of useSimulation
+  sim: any;
 }
 
-// Convert lat/lon to 3D sphere position
 function latLonToVec3(lat: number, lon: number, radius: number): THREE.Vector3 {
   const phi = (90 - lat) * (Math.PI / 180);
   const theta = (lon + 180) * (Math.PI / 180);
@@ -23,17 +22,14 @@ export default function EarthGlobe({ sim }: EarthGlobeProps) {
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const frameRef = useRef<number>(0);
-  const zoomSliderRef = useRef<HTMLInputElement>(null);
-  
-  // Refs for dynamic objects so we don't recreate them every render
+
   const objectsRef = useRef<{
     satellites: Record<string, THREE.Mesh>,
     debris: THREE.Points | null,
     threats: Record<string, THREE.Mesh>,
-    trails: Record<string, THREE.Vector3[]>,
-    trailMeshes: Record<string, THREE.Line>,
+    trailLines: Record<string, THREE.Line>,
     earthGroup: THREE.Group | null
-  }>({ satellites: {}, debris: null, threats: {}, trails: {}, trailMeshes: {}, earthGroup: null });
+  }>({ satellites: {}, debris: null, threats: {}, trailLines: {}, earthGroup: null });
 
   const initScene = useCallback(() => {
     if (!containerRef.current) return;
@@ -58,11 +54,9 @@ export default function EarthGlobe({ sim }: EarthGlobeProps) {
     scene.add(earthGroup);
     objectsRef.current.earthGroup = earthGroup;
 
-    // Earth Sphere (High-res texture approach)
+    // Earth Sphere
     const earthRadius = 1.0;
     const earthGeo = new THREE.SphereGeometry(earthRadius, 64, 64);
-    
-    // Fallback simple dark material if texture fails or loading
     const earthMat = new THREE.MeshPhongMaterial({
       color: 0x051122,
       emissive: 0x020510,
@@ -73,7 +67,7 @@ export default function EarthGlobe({ sim }: EarthGlobeProps) {
     const textureLoader = new THREE.TextureLoader();
     textureLoader.load('https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg', (tex) => {
       earthMat.map = tex;
-      earthMat.color.setHex(0x55aaaa); // Tint it cyan-ish for aesthetic
+      earthMat.color.setHex(0x55aaaa);
       earthMat.needsUpdate = true;
     });
 
@@ -87,57 +81,52 @@ export default function EarthGlobe({ sim }: EarthGlobeProps) {
     dirLight.position.set(5, 3, 5);
     scene.add(dirLight);
 
-    // Atmosphere
+    // Atmosphere glow
     const atmosGeo = new THREE.SphereGeometry(earthRadius * 1.05, 64, 64);
     const atmosMat = new THREE.MeshPhongMaterial({
       color: 0x00d4ff,
       transparent: true,
-      opacity: 0.15,
+      opacity: 0.12,
       side: THREE.BackSide,
       blending: THREE.AdditiveBlending,
     });
-    const atmos = new THREE.Mesh(atmosGeo, atmosMat);
-    earthGroup.add(atmos);
+    earthGroup.add(new THREE.Mesh(atmosGeo, atmosMat));
 
     // Grid
-    const gridMat = new THREE.LineBasicMaterial({ color: 0x00d4ff, transparent: true, opacity: 0.1 });
+    const gridMat = new THREE.LineBasicMaterial({ color: 0x00d4ff, transparent: true, opacity: 0.08 });
     const gridGeo = new THREE.EdgesGeometry(new THREE.SphereGeometry(earthRadius * 1.01, 16, 16));
-    const grid = new THREE.LineSegments(gridGeo, gridMat);
-    earthGroup.add(grid);
+    earthGroup.add(new THREE.LineSegments(gridGeo, gridMat));
 
-    // Ground Stations
+    // Ground Stations (green cones)
     const gsGeo = new THREE.ConeGeometry(0.015, 0.04, 3);
-    gsGeo.rotateX(Math.PI/2);
+    gsGeo.rotateX(Math.PI / 2);
     const gsMat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
     sim.groundStations.forEach((gs: GroundStation) => {
       const gsMesh = new THREE.Mesh(gsGeo, gsMat);
       const pos = latLonToVec3(gs.lat, gs.lon, earthRadius);
       gsMesh.position.copy(pos);
-      gsMesh.lookAt(new THREE.Vector3(0,0,0)); // point inward
+      gsMesh.lookAt(new THREE.Vector3(0, 0, 0));
       earthGroup.add(gsMesh);
     });
 
-    // Orbital Ring (550km)
+    // Orbital Ring (550km, dashed white)
     const r_orb = 1.0 + (550 / 6371);
-    const orbitPoints = [];
-    for(let i=0; i<=128; i++) {
-      const a = (i/128) * Math.PI * 2;
-      // Orbit is inclined roughly in XY plane (equatorial).
-      // Based on our init_satellites: x = r*cos, y = r*sin, z = r*inc
-      orbitPoints.push(new THREE.Vector3(Math.cos(a)*r_orb, Math.sin(a)*r_orb, 0));
+    const orbitPoints: THREE.Vector3[] = [];
+    for (let i = 0; i <= 128; i++) {
+      const a = (i / 128) * Math.PI * 2;
+      orbitPoints.push(new THREE.Vector3(Math.cos(a) * r_orb, Math.sin(a) * r_orb, 0));
     }
     const orbitGeo = new THREE.BufferGeometry().setFromPoints(orbitPoints);
-    const orbitMat = new THREE.LineDashedMaterial({ color: 0xffffff, dashSize: 0.04, gapSize: 0.04, transparent: true, opacity: 0.3 });
+    const orbitMat = new THREE.LineDashedMaterial({ color: 0xffffff, dashSize: 0.04, gapSize: 0.04, transparent: true, opacity: 0.25 });
     const orbitalRing = new THREE.Line(orbitGeo, orbitMat);
     orbitalRing.computeLineDistances();
     earthGroup.add(orbitalRing);
 
-    // Terminator Line (Dashed yellow, day/night boundary)
-    // Roughly perpendicular to sun. Let's make it a ring around YZ plane (if sun is at X axis).
-    const termPoints = [];
-    for(let i=0; i<=128; i++) {
-      const a = (i/128) * Math.PI * 2;
-      termPoints.push(new THREE.Vector3(0, Math.cos(a)*1.001, Math.sin(a)*1.001));
+    // Terminator Line (dashed yellow, YZ plane)
+    const termPoints: THREE.Vector3[] = [];
+    for (let i = 0; i <= 128; i++) {
+      const a = (i / 128) * Math.PI * 2;
+      termPoints.push(new THREE.Vector3(0, Math.cos(a) * 1.001, Math.sin(a) * 1.001));
     }
     const termGeo = new THREE.BufferGeometry().setFromPoints(termPoints);
     const termMat = new THREE.LineDashedMaterial({ color: 0xffaa00, dashSize: 0.04, gapSize: 0.04 });
@@ -165,24 +154,28 @@ export default function EarthGlobe({ sim }: EarthGlobeProps) {
       prevMouse = { x: e.clientX, y: e.clientY };
     };
     const onMouseUp = () => isDragging = false;
+
+    // Wheel zoom — works inside the globe canvas only (stopPropagation prevents page scroll conflict)
     const onWheel = (e: WheelEvent) => {
-      // Disabled wheel zoom to allow page scrolling
+      e.preventDefault();
+      e.stopPropagation();
+      if (cameraRef.current) {
+        const newZ = cameraRef.current.position.z + e.deltaY * 0.002;
+        cameraRef.current.position.z = Math.max(1.5, Math.min(8, newZ));
+      }
     };
 
     renderer.domElement.addEventListener('mousedown', onMouseDown);
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', onMouseUp);
-    // renderer.domElement.addEventListener('wheel', onWheel);
+    renderer.domElement.addEventListener('wheel', onWheel, { passive: false });
 
     const animate = () => {
       frameRef.current = requestAnimationFrame(animate);
-
-      // Smooth rotate
       currentRotation.x += (rotationTarget.x - currentRotation.x) * 0.1;
       currentRotation.y += (rotationTarget.y - currentRotation.y) * 0.1;
       earthGroup.rotation.x = currentRotation.x;
       earthGroup.rotation.y = currentRotation.y;
-
       renderer.render(scene, camera);
     };
     animate();
@@ -202,7 +195,7 @@ export default function EarthGlobe({ sim }: EarthGlobeProps) {
       renderer.domElement.removeEventListener('mousedown', onMouseDown);
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
-      // renderer.domElement.removeEventListener('wheel', onWheel);
+      renderer.domElement.removeEventListener('wheel', onWheel);
       cancelAnimationFrame(frameRef.current);
       renderer.dispose();
     };
@@ -213,16 +206,15 @@ export default function EarthGlobe({ sim }: EarthGlobeProps) {
     return cleanup;
   }, [initScene]);
 
-  // Sync dynamic simulation objects (Satellites, Debris, Threats)
+  // Sync dynamic objects
   useEffect(() => {
     if (!objectsRef.current.earthGroup) return;
     const group = objectsRef.current.earthGroup;
 
-    // Update Satellites
+    // ── Satellites ──
     sim.satellites.forEach((sat: Satellite) => {
       let mesh = objectsRef.current.satellites[sat.id];
       if (!mesh) {
-        // Cyan diamond
         const geo = new THREE.OctahedronGeometry(0.02, 0);
         const mat = new THREE.MeshBasicMaterial({ color: 0x00d4ff });
         mesh = new THREE.Mesh(geo, mat);
@@ -231,8 +223,7 @@ export default function EarthGlobe({ sim }: EarthGlobeProps) {
       }
       const r = 1.0 + (sat.pos.alt / 6371);
       mesh.position.copy(latLonToVec3(sat.pos.lat, sat.pos.lon, r));
-      
-      // Highlight selected
+
       if (sim.selectedSatId === sat.id) {
         mesh.scale.setScalar(1.5);
         (mesh.material as THREE.MeshBasicMaterial).color.setHex(0xffffff);
@@ -241,61 +232,70 @@ export default function EarthGlobe({ sim }: EarthGlobeProps) {
         (mesh.material as THREE.MeshBasicMaterial).color.setHex(0x00d4ff);
       }
 
-      // Update Trails
-      let history = objectsRef.current.trails[sat.id];
-      if (!history) {
-        history = [];
-        objectsRef.current.trails[sat.id] = history;
-      }
-      
-      const newPos = mesh.position.clone();
-      if (history.length === 0 || history[history.length - 1].distanceTo(newPos) > 0.01) {
-        history.push(newPos);
-        if (history.length > 50) history.shift();
-      }
-
-      let trailMesh = objectsRef.current.trailMeshes[sat.id];
-      if (!trailMesh) {
-        const mat = new THREE.LineBasicMaterial({ color: 0x00d4ff, transparent: true, opacity: 0.4 });
+      // ── Trail: short line from prev position to current ──
+      let trailLine = objectsRef.current.trailLines[sat.id];
+      if (!trailLine) {
+        const mat = new THREE.LineBasicMaterial({ color: 0x00d4ff, transparent: true, opacity: 0.35 });
         const geo = new THREE.BufferGeometry();
-        trailMesh = new THREE.Line(geo, mat);
-        group.add(trailMesh);
-        objectsRef.current.trailMeshes[sat.id] = trailMesh;
+        // Pre-allocate for 8 points
+        const arr = new Float32Array(8 * 3);
+        geo.setAttribute('position', new THREE.BufferAttribute(arr, 3));
+        geo.setDrawRange(0, 0);
+        trailLine = new THREE.Line(geo, mat);
+        group.add(trailLine);
+        objectsRef.current.trailLines[sat.id] = trailLine;
+        (trailLine as any)._trailHistory = [];
       }
 
-      trailMesh.visible = sim.showTrails;
+      const history = (trailLine as any)._trailHistory as THREE.Vector3[];
+      const newPos = mesh.position.clone();
+
+      // Only push if moved enough (prevents spam from polling)
+      if (history.length === 0 || history[history.length - 1].distanceTo(newPos) > 0.005) {
+        history.push(newPos);
+        // Keep only last 8 positions — prevents the mesh buildup
+        if (history.length > 8) history.shift();
+      }
+
+      trailLine.visible = sim.showTrails;
       if (sim.showTrails && history.length > 1) {
-        trailMesh.geometry.setFromPoints(history);
+        const posAttr = trailLine.geometry.attributes.position;
+        for (let j = 0; j < history.length; j++) {
+          (posAttr.array as Float32Array)[j * 3] = history[j].x;
+          (posAttr.array as Float32Array)[j * 3 + 1] = history[j].y;
+          (posAttr.array as Float32Array)[j * 3 + 2] = history[j].z;
+        }
+        posAttr.needsUpdate = true;
+        trailLine.geometry.setDrawRange(0, history.length);
       }
     });
 
-    // Update Debris (Points)
+    // ── Debris ──
     if (!objectsRef.current.debris) {
       const geo = new THREE.BufferGeometry();
       const posArray = new Float32Array(sim.debris.length * 3);
       geo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
-      const mat = new THREE.PointsMaterial({ color: 0x4466ff, size: 0.015 });
+      const mat = new THREE.PointsMaterial({ color: 0x4466ff, size: 0.012, transparent: true, opacity: 0.7 });
       const points = new THREE.Points(geo, mat);
       group.add(points);
       objectsRef.current.debris = points;
     }
-    
+
     objectsRef.current.debris.visible = sim.showDebris;
-    
+
     if (sim.showDebris) {
       const debPositions = objectsRef.current.debris.geometry.attributes.position.array as Float32Array;
       sim.debris.forEach((deb: Debris, i: number) => {
         const r = 1.0 + (deb.pos.alt / 6371);
         const v = latLonToVec3(deb.pos.lat, deb.pos.lon, r);
-        debPositions[i*3] = v.x;
-        debPositions[i*3+1] = v.y;
-        debPositions[i*3+2] = v.z;
+        debPositions[i * 3] = v.x;
+        debPositions[i * 3 + 1] = v.y;
+        debPositions[i * 3 + 2] = v.z;
       });
       objectsRef.current.debris.geometry.attributes.position.needsUpdate = true;
     }
 
-    // Update Threats
-    // First, clear missing threats
+    // ── Threats ──
     const currentThreatIds = new Set(sim.threats.map((t: Threat) => t.id));
     Object.keys(objectsRef.current.threats).forEach(id => {
       if (!currentThreatIds.has(id)) {
@@ -303,13 +303,11 @@ export default function EarthGlobe({ sim }: EarthGlobeProps) {
         delete objectsRef.current.threats[id];
       }
     });
-    
-    // Add/Update existing threats
+
     sim.threats.forEach((thr: Threat) => {
       let mesh = objectsRef.current.threats[thr.id];
       if (!mesh) {
-        // Red square (Box)
-        const geo = new THREE.BoxGeometry(0.02, 0.02, 0.02);
+        const geo = new THREE.BoxGeometry(0.025, 0.025, 0.025);
         const mat = new THREE.MeshBasicMaterial({ color: 0xff4444 });
         mesh = new THREE.Mesh(geo, mat);
         group.add(mesh);
@@ -317,71 +315,16 @@ export default function EarthGlobe({ sim }: EarthGlobeProps) {
       }
       const r = 1.0 + (thr.pos.alt / 6371);
       mesh.position.copy(latLonToVec3(thr.pos.lat, thr.pos.lon, r));
-      // Pulse animation based on time
       const scale = 1.0 + Math.sin(Date.now() * 0.005) * 0.3;
       mesh.scale.setScalar(scale);
     });
 
-  }, [sim.time, sim.satellites, sim.debris, sim.threats, sim.selectedSatId]);
+  }, [sim.time, sim.satellites, sim.debris, sim.threats, sim.selectedSatId, sim.showDebris, sim.showTrails]);
 
   return (
-    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-      <div
-        ref={containerRef}
-        style={{ width: '100%', height: '100%', cursor: 'grab' }}
-      />
-      {/* Zoom Slider Overlay */}
-      <div style={{
-        position: 'absolute',
-        right: '15px',
-        top: '50%',
-        transform: 'translateY(-50%)',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        gap: '8px',
-        background: 'rgba(0, 0, 0, 0.5)',
-        padding: '10px 5px',
-        borderRadius: '20px',
-        border: '1px solid rgba(0, 212, 255, 0.2)'
-      }}>
-        <span style={{ color: '#00d4ff', fontSize: '1.2rem', fontWeight: 'bold', cursor: 'pointer', userSelect: 'none' }} onClick={() => {
-          if (cameraRef.current) {
-            const newZ = Math.max(1.5, cameraRef.current.position.z - 0.5);
-            cameraRef.current.position.z = newZ;
-            if (zoomSliderRef.current) zoomSliderRef.current.value = (((8.0 - newZ) / 6.5) * 100).toString();
-          }
-        }}>+</span>
-        <input 
-          ref={zoomSliderRef}
-          type="range" 
-          min="0" 
-          max="100" 
-          step="1" 
-          defaultValue={((8.0 - 3.5) / 6.5) * 100}
-          style={{ 
-            writingMode: 'vertical-lr', 
-            direction: 'rtl',
-            WebkitAppearance: 'slider-vertical',
-            height: '100px', 
-            cursor: 'pointer',
-            accentColor: '#00d4ff'
-          } as React.CSSProperties} 
-          onChange={(e) => {
-            if (cameraRef.current) {
-              const val = parseFloat(e.target.value);
-              cameraRef.current.position.z = 8.0 - (val / 100) * 6.5;
-            }
-          }}
-        />
-        <span style={{ color: '#00d4ff', fontSize: '1.2rem', fontWeight: 'bold', cursor: 'pointer', userSelect: 'none' }} onClick={() => {
-          if (cameraRef.current) {
-            const newZ = Math.min(8, cameraRef.current.position.z + 0.5);
-            cameraRef.current.position.z = newZ;
-            if (zoomSliderRef.current) zoomSliderRef.current.value = (((8.0 - newZ) / 6.5) * 100).toString();
-          }
-        }}>-</span>
-      </div>
-    </div>
+    <div
+      ref={containerRef}
+      style={{ width: '100%', height: '100%', cursor: 'grab' }}
+    />
   );
 }
