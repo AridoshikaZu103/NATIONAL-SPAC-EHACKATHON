@@ -1,22 +1,13 @@
 import React from 'react';
+import { PolarAngleAxis, PolarGrid, PolarRadiusAxis, Radar, RadarChart, ResponsiveContainer, Tooltip, Scatter } from 'recharts';
 
-interface ThreatData {
-  id: string;
-  targetSatId: string;
-  timeToCollision: number;
-}
-
-interface BullseyeProps {
-  threats: ThreatData[];
-}
-
-export default function BullseyePlot({ threats }: BullseyeProps) {
+export default function BullseyePlot({ debris, satellites, threats }) {
   const size = 300;
   const center = size / 2;
   const maxDistance = 3600; // max 1 hour TCA to show on edge
 
   // Determine risk color
-  const getRiskColor = (tca: number) => {
+  const getRiskColor = (tca) => {
     if (tca < 600) return '#ff4444'; // Red < 10 mins
     if (tca < 1800) return '#ffaa00'; // Yellow < 30 mins
     return '#00ff88'; // Green > 30 mins

@@ -1,24 +1,8 @@
 import React from 'react';
 
-interface SatelliteData {
-  id: string;
-  lat: number;
-  lon: number;
-  status: string;
-}
-
-interface GroundTrackProps {
-  satellites: SatelliteData[];
-  time: number; // Used to shift the terminator line
-}
-
-export default function GroundTrackMap({ satellites, time }: GroundTrackProps) {
-  // SVG Canvas dimensions
-  const width = 800;
-  const height = 400;
-
+export default function GroundTrackMap({ satellites, time, width = 800, height = 400 }) {
   // Helper to convert lat/lon to X/Y on a simple equirectangular projection
-  const getXY = (lat: number, lon: number) => {
+  const getXY = (lat, lon) => {
     const x = ((lon + 180) / 360) * width;
     const y = ((90 - lat) / 180) * height;
     return { x, y };

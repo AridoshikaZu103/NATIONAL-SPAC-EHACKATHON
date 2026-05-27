@@ -1,19 +1,6 @@
 import React from 'react';
 
-interface TimelineEvent {
-  id: string;
-  satId: string;
-  timeStart: number;
-  timeEnd: number;
-  type: string; // "EVASION" | "RECOVERY"
-}
-
-interface GanttProps {
-  timeline: TimelineEvent[];
-  currentTime: number;
-}
-
-export default function ManeuverGantt({ timeline, currentTime }: GanttProps) {
+export default function ManeuverGantt({ timeline, currentTime, satellites }) {
   // We'll show a window of Time: CurrentTime - 1 hour to CurrentTime + 3 hours
   const windowStart = Math.max(0, currentTime - 3600);
   const windowEnd = windowStart + (4 * 3600); // 4 hours total window
@@ -22,12 +9,12 @@ export default function ManeuverGantt({ timeline, currentTime }: GanttProps) {
   // Group events by satellite ID for row display
   const rows = ['SAT-Alpha-01', 'SAT-Alpha-02', 'SAT-Alpha-03', 'SAT-Alpha-04', 'SAT-Alpha-05', 'SAT-Alpha-06'];
 
-  const getLeftPct = (time: number) => {
+  const getLeftPct = (time) => {
     const clamped = Math.max(windowStart, Math.min(windowEnd, time));
     return ((clamped - windowStart) / windowDuration) * 100;
   };
 
-  const getWidthPct = (start: number, end: number) => {
+  const getWidthPct = (start, end) => {
     if (end < windowStart || start > windowEnd) return 0;
     const s = Math.max(windowStart, start);
     const e = Math.min(windowEnd, end);

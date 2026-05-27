@@ -1,18 +1,7 @@
 import React from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, LineChart, Line, Cell } from 'recharts';
 
-interface SatelliteData {
-  id: string;
-  name: string;
-  fuel_kg: number;
-}
-
-interface ResourceDashProps {
-  satellites: SatelliteData[];
-  time: number;
-}
-
-export default function ResourceDash({ satellites, time }: ResourceDashProps) {
+export default function ResourceDash({ satellites, time }) {
   // Format data for Recharts
   const fuelData = satellites.map(sat => ({
     name: sat.name || sat.id.split('-')[1],

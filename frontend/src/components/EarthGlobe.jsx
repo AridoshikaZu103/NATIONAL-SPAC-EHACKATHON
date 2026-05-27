@@ -1,13 +1,4 @@
-import React, { useEffect, useState } from 'react';
-
-interface EarthGlobeProps {
-  isPaused: boolean;
-  satellites: any[];
-  debris: any[];
-  threats: any[];
-  onTelemetryUpdate?: (data: any) => void;
-  onCollisionWarning?: (active: boolean) => void;
-}
+import React, { useEffect } from 'react';
 
 // 6 fixed ground stations
 const GROUND_STATIONS = [
@@ -19,7 +10,7 @@ const GROUND_STATIONS = [
   { id: 'McMurdo', lat: -77.84, lon: 166.66 }
 ];
 
-export default function EarthGlobe({ isPaused, satellites, debris, threats, onTelemetryUpdate, onCollisionWarning }: EarthGlobeProps) {
+export default function EarthGlobe({ isPaused, satellites, debris, threats, onTelemetryUpdate, onCollisionWarning }) {
   
   // Send telemetry for alpha-1 every few renders for the sidebar
   useEffect(() => {
@@ -56,7 +47,7 @@ export default function EarthGlobe({ isPaused, satellites, debris, threats, onTe
   // Radius of the CSS globe is 250px (width 500 / 2). 
   // We add altitude scaling: Earth=6371km. 550km is approx +8.6% radius. 
   // 250px * 1.086 = 271.5px orbit radius.
-  const getTransform = (lat: number, lon: number, altKm: number) => {
+  const getTransform = (lat, lon, altKm) => {
     const scale = 1 + (altKm / 6371);
     const r = 250 * scale;
     // Rotate Y for Longitude, Rotate X for negative Latitude (CSS Y axis is flipped compared to standard math)

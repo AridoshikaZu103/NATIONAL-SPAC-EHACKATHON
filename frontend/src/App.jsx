@@ -7,16 +7,8 @@ import ResourceDash from './components/ResourceDash';
 import ManeuverGantt from './components/ManeuverGantt';
 import './App.css';
 
-interface TelemetryData {
-  altitude: number;
-  velocity: number;
-  lat: number;
-  lon: number;
-  inclination: number;
-}
-
 export default function App() {
-  const [telemetry, setTelemetry] = useState<TelemetryData>({
+  const [telemetry, setTelemetry] = useState({
     altitude: 550,
     velocity: 7.58,
     lat: 0,
@@ -29,14 +21,14 @@ export default function App() {
 
   // Backend state for visualization modules
   const [simTime, setSimTime] = useState(0);
-  const [satellites, setSatellites] = useState<any[]>([]);
-  const [debris, setDebris] = useState<any[]>([]);
-  const [threats, setThreats] = useState<any[]>([]);
-  const [timeline, setTimeline] = useState<any[]>([]);
+  const [satellites, setSatellites] = useState([]);
+  const [debris, setDebris] = useState([]);
+  const [threats, setThreats] = useState([]);
+  const [timeline, setTimeline] = useState([]);
 
   // Fetch Snapshot API
   useEffect(() => {
-    let interval: ReturnType<typeof setInterval>;
+    let interval;
     
     const fetchSnapshot = async () => {
       if (isPaused) return;
@@ -63,13 +55,13 @@ export default function App() {
   }, [isPaused]);
 
 
-  const handleTelemetryUpdate = useCallback((data: TelemetryData) => {
+  const handleTelemetryUpdate = (data) => {
     setTelemetry(data);
-  }, []);
+  };
 
-  const handleCollisionWarning = useCallback((active: boolean) => {
-    setColaWarning(active);
-  }, []);
+  const handleCollisionWarning = (val) => {
+    setColaWarning(val);
+  };
 
   return (
     <div className="app-container">
@@ -89,7 +81,7 @@ export default function App() {
           <div className="status-badges">
             <button 
               className={`control-btn ${isPaused ? 'paused' : 'playing'}`}
-              onClick={() => setIsPaused(!isPaused)}
+              onClick={async () => {setIsPaused(!isPaused)}}
             >
               {isPaused ? '▶️ PLAY' : '⏸️ PAUSE'}
             </button>
@@ -203,7 +195,7 @@ export default function App() {
 }
 
 // ── Components ──
-function TelemetryRow({ label, value, icon, color }: { label: string; value: string; icon: string; color: string }) {
+function TelemetryRow({ label, value, icon, color }) {
   return (
     <div className="telemetry-row">
       <span className="telemetry-label">{icon} {label}</span>
@@ -212,7 +204,7 @@ function TelemetryRow({ label, value, icon, color }: { label: string; value: str
   );
 }
 
-function InfoRow({ label, value, valueColor = '#ccc' }: { label: string; value: string; valueColor?: string }) {
+function InfoRow({ label, value, valueColor = '#ccc' }) {
   return (
     <div className="info-row">
       <span className="info-label">{label}</span>
