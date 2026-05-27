@@ -46,8 +46,8 @@ function App() {
             <span style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{formattedTime}</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#00ff88', boxShadow: '0 0 8px #00ff88' }}></div>
-            <span style={{ fontSize: '0.7rem', color: '#00ff88' }}>ONLINE</span>
+            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: sim.isRunning ? '#00ff88' : '#ff4444', boxShadow: `0 0 8px ${sim.isRunning ? '#00ff88' : '#ff4444'}` }}></div>
+            <span style={{ fontSize: '0.7rem', color: sim.isRunning ? '#00ff88' : '#ff4444' }}>{sim.isRunning ? 'ONLINE' : 'OFFLINE'}</span>
           </div>
         </div>
 
@@ -74,8 +74,8 @@ function App() {
           <div style={{ padding: '8px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(0, 212, 255, 0.1)' }}>
             <span style={{ fontSize: '0.8rem', letterSpacing: '1px' }}>GROUND TRACK & 3D GLOBE</span>
             <div style={{ display: 'flex', gap: '12px', fontSize: '0.7rem' }}>
-              <label><input type="checkbox" defaultChecked /> DEBRIS</label>
-              <label><input type="checkbox" defaultChecked /> TRAILS</label>
+              <label><input type="checkbox" checked={sim.showDebris} onChange={(e) => sim.setShowDebris(e.target.checked)} /> DEBRIS</label>
+              <label><input type="checkbox" checked={sim.showTrails} onChange={(e) => sim.setShowTrails(e.target.checked)} /> TRAILS</label>
             </div>
           </div>
           <div style={{ flex: 1, position: 'relative' }}>

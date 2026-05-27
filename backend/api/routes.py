@@ -65,16 +65,28 @@ async def get_snapshot():
         "timeline": global_state.timeline
     }
 
+def calc_threat_pos(target, time_to_collision):
+    r_vec = target["position"]
+    v_vec = target["velocity"]
+    h_vec = np.cross(r_vec, v_vec)
+    if np.linalg.norm(h_vec) < 1e-6:
+        h_norm = np.array([0, 0, 1])
+    else:
+        h_norm = h_vec / np.linalg.norm(h_vec)
+    theta = max(0.0, (time_to_collision / 86400.0) * (np.pi / 4))
+    term1 = r_vec * np.cos(theta)
+    term2 = np.cross(h_norm, r_vec) * np.sin(theta)
+    term3 = h_norm * np.dot(h_norm, r_vec) * (1 - np.cos(theta))
+    return term1 + term2 + term3
+
 @router.post("/telemetry")
 async def ingest_telemetry(req: TelemetryRequest):
     """Ingest debris/threat state vectors"""
-    # For hackathon demo, we translate incoming artificial threats directly
     for obj in req.objects:
         if obj.get("type") == "THREAT":
-            # Initialize with a valid ECI position to avoid division by zero (NaN)
             target = next((s for s in global_state.satellites if s["id"] == obj.get("targetSatId")), None)
             if target:
-                obj["position"] = target["position"] + np.array([2000.0, 2000.0, 0.0])
+                obj["position"] = calc_threat_pos(target, obj.get("timeToCollision", 86400))
             else:
                 obj["position"] = np.array([7000.0, 0.0, 0.0])
             global_state.threats.append(obj)
@@ -144,11 +156,7 @@ async def simulate_step(req: StepRequest):
         
         target = next((s for s in global_state.satellites if s["id"] == thr["targetSatId"]), None)
         if target:
-            # Simple linear interpolation towards target for the demo threat
-            # In a real scenario, threat is just another object. 
-            # We move the threat towards the satellite.
-            dist_factor = max(0.01, thr["timeToCollision"] / 86400)
-            thr["position"] = target["position"] + dist_factor * np.array([200, 200, 0])
+            thr["position"] = calc_threat_pos(target, thr["timeToCollision"])
             
             if thr["timeToCollision"] < 86400 * 2:
                 is_crit = thr["timeToCollision"] < 18000

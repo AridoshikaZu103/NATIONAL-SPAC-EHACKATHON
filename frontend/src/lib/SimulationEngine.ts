@@ -70,6 +70,9 @@ export function useSimulation() {
   const [speedMult, setSpeedMult] = useState<number>(10); 
   const [stepSizeStr, setStepSizeStr] = useState<'10min' | '1hr'>('10min');
   
+  const [showDebris, setShowDebris] = useState(true);
+  const [showTrails, setShowTrails] = useState(true);
+  
   const [satellites, setSatellites] = useState<Satellite[]>([]);
   const [debris, setDebris] = useState<Debris[]>([]);
   const [threats, setThreats] = useState<Threat[]>([]);
@@ -179,6 +182,10 @@ export function useSimulation() {
     setSpeedMult,
     stepSizeStr,
     setStepSizeStr,
+    showDebris,
+    setShowDebris,
+    showTrails,
+    setShowTrails,
     advanceStep,
     satellites,
     debris,
