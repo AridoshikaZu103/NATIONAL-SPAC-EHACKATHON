@@ -273,11 +273,34 @@ export default function EarthGlobe({ isPaused = false, onTelemetryUpdate, onColl
     orbitGroup.add(debrisSystem);
 
     // ── Threat Debris (Red Square) ──
+    const earthGeometry = new THREE.SphereGeometry(1, 64, 64);
+    const earthMaterial = new THREE.MeshPhysicalMaterial({
+      color: 0x051530,
+      emissive: 0x010515,
+      roughness: 0.6,
+      metalness: 0.4,
+      clearcoat: 0.2,
+      clearcoatRoughness: 0.3
+    });
+    const earth = new THREE.Mesh(earthGeometry, earthMaterial);
+    scene.add(earth);
+
+    // Advanced Atmosphere Rim Glow
+    const atmosphereMaterial = new THREE.MeshPhongMaterial({
+      color: 0x00aaff,
+      transparent: true,
+      opacity: 0.15,
+      side: THREE.BackSide,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    });
+    const atmosphere = new THREE.Mesh(new THREE.SphereGeometry(1.04, 64, 64), atmosphereMaterial);
+    scene.add(atmosphere);
+
     const threatGeo = new THREE.BoxGeometry(0.03, 0.03, 0.03);
     const threatMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
     const threatDebris = new THREE.Mesh(threatGeo, threatMat);
     
-    // Add threat glow
     const threatGlowGeo = new THREE.BoxGeometry(0.05, 0.05, 0.05);
     const threatGlowMat = new THREE.MeshBasicMaterial({ color: 0xff0000, transparent: true, opacity: 0.4 });
     const threatGlow = new THREE.Mesh(threatGlowGeo, threatGlowMat);
@@ -327,15 +350,13 @@ export default function EarthGlobe({ isPaused = false, onTelemetryUpdate, onColl
       const state = stateRef.current;
       
       if (!state.isPaused) {
-        simulationTime += delta * 0.5; // Orbit speed
+        simulationTime += delta * 0.5;
       }
 
-      // Smooth camera orbit container rotation
       state.rotationTarget.y += state.autoRotateSpeed;
       state.currentRotation.x += (state.rotationTarget.x - state.currentRotation.x) * 0.1;
       state.currentRotation.y += (state.rotationTarget.y - state.currentRotation.y) * 0.1;
 
-      // Apply rotation to Earth and Orbit group
       earthGroup.rotation.x = state.currentRotation.x;
       earthGroup.rotation.y = state.currentRotation.y;
       orbitGroup.rotation.x = state.currentRotation.x;
@@ -343,15 +364,12 @@ export default function EarthGlobe({ isPaused = false, onTelemetryUpdate, onColl
 
       earthMat.uniforms.uTime.value += delta;
 
-      // Rotate Earth on its axis relative to orbits
       if (!state.isPaused) {
           earthGroup.rotateY(delta * 0.1); 
       }
 
-      // ── Update Satellites ──
-      // Counter-clockwise orbit: we just subtract time
       satellites.forEach((sat, i) => {
-        const offset = (i / 6) * Math.PI * 2; // Evenly spaced
+        const offset = (i / 6) * Math.PI * 2;
         const angle = -simulationTime + offset;
         sat.position.set(
           ORBIT_RADIUS * Math.cos(angle),
@@ -360,34 +378,27 @@ export default function EarthGlobe({ isPaused = false, onTelemetryUpdate, onColl
         );
       });
 
-      // ── Update Threat Debris ──
-      // Placed slightly ahead of α1 (satellites[0]) but moving at slightly different speed to cause collision
       const alpha1Angle = -simulationTime;
-      const threatAngle = alpha1Angle - 0.2 + (simulationTime * 0.05); // Threat catches up or α1 catches up
+      const threatAngle = alpha1Angle - 0.2 + (simulationTime * 0.05);
       
       threatDebris.position.set(
         ORBIT_RADIUS * Math.cos(threatAngle),
-        ORBIT_RADIUS * Math.sin(threatAngle) * Math.cos(inclination + 0.02), // slight inclination offset
+        ORBIT_RADIUS * Math.sin(threatAngle) * Math.cos(inclination + 0.02),
         ORBIT_RADIUS * Math.sin(threatAngle) * Math.sin(inclination + 0.02)
       );
 
-      // Pulse threat glow
       threatGlow.scale.setScalar(1.0 + Math.sin(performance.now() * 0.01) * 0.4);
 
-      // Collision Warning logic
       const dist = satellites[0].position.distanceTo(threatDebris.position);
       if (onCollisionWarning) {
-        onCollisionWarning(dist < 0.15); // Trigger warning if very close
+        onCollisionWarning(dist < 0.15);
       }
 
-      // ── Update Debris Belt ──
       if (!state.isPaused) {
-        debrisSystem.rotation.y += delta * 0.02; // slow drift
+        debrisSystem.rotation.y += delta * 0.02;
       }
 
-      // ── Send Telemetry for α1 ──
       if (onTelemetryUpdate && !state.isPaused && Math.floor(simulationTime * 10) % 5 === 0) {
-        // Calculate geo pos for α1 based on world coordinates
         const satWorldPos = new THREE.Vector3();
         satellites[0].getWorldPosition(satWorldPos);
         
@@ -396,8 +407,8 @@ export default function EarthGlobe({ isPaused = false, onTelemetryUpdate, onColl
         const lon = Math.atan2(satWorldPos.z, satWorldPos.x) * (180 / Math.PI);
 
         onTelemetryUpdate({
-          altitude: 550, // nominal
-          velocity: 7.58, // km/s
+          altitude: 550,
+          velocity: 7.58,
           lat,
           lon,
           inclination: 51.6,
@@ -418,8 +429,18 @@ export default function EarthGlobe({ isPaused = false, onTelemetryUpdate, onColl
     };
     window.addEventListener('resize', handleResize);
 
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === '+' || e.key === '=') {
+        camera.position.z = Math.max(1.5, camera.position.z - 0.5);
+      } else if (e.key === '-') {
+        camera.position.z = Math.min(10, camera.position.z + 0.5);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+
     return () => {
       window.removeEventListener('resize', handleResize);
+      window.removeEventListener('keydown', handleKeyDown);
       renderer.domElement.removeEventListener('mousedown', onMouseDown);
       renderer.domElement.removeEventListener('mousemove', onMouseMove);
       renderer.domElement.removeEventListener('mouseup', onMouseUp);
@@ -427,7 +448,7 @@ export default function EarthGlobe({ isPaused = false, onTelemetryUpdate, onColl
       cancelAnimationFrame(frameRef.current);
       renderer.dispose();
     };
-  }, [onTelemetryUpdate, onCollisionWarning]); // Removed isPaused from dependencies to avoid re-mounting
+  }, [onTelemetryUpdate, onCollisionWarning]);
 
   useEffect(() => {
     const cleanup = initScene();

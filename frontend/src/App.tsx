@@ -24,7 +24,6 @@ export default function App() {
     inclination: 51.6,
   });
 
-  const [isConnected, setIsConnected] = useState(true);
   const [isPaused, setIsPaused] = useState(false);
   const [colaWarning, setColaWarning] = useState(false);
 
@@ -44,7 +43,6 @@ export default function App() {
         const res = await axios.get('/api/visualization/snapshot');
         const data = res.data;
         
-        setIsConnected(true);
         setSimTime(data.time);
         setSatellites(data.satellites || []);
         
@@ -53,7 +51,6 @@ export default function App() {
         setTimeline(data.timeline || []);
 
       } catch (err) {
-        setIsConnected(false);
         console.error("API Error:", err);
       }
     };
@@ -94,11 +91,6 @@ export default function App() {
             >
               {isPaused ? '▶️ PLAY' : '⏸️ PAUSE'}
             </button>
-
-            <div className={`status-badge ${isConnected ? 'live' : 'offline'}`}>
-              <div className="pulse-dot" />
-              <span>{isConnected ? 'LIVE' : 'OFFLINE'}</span>
-            </div>
           </div>
         </div>
 

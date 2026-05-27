@@ -40,18 +40,26 @@ export default function GroundTrackMap({ satellites, time }: GroundTrackProps) {
   const shadowPath = `M 0,${height} L 0,${terminatorPoints[0].split(',')[1]} L ${terminatorPoints.join(' L ')} L ${width},${height} Z`;
 
   return (
-    <div style={{ width: '100%', height: '100%', position: 'relative', background: '#0a192f', borderRadius: '12px', overflow: 'hidden', border: '1px solid rgba(0, 212, 255, 0.2)' }}>
+    <div style={{ width: '100%', height: '100%', position: 'relative', background: 'radial-gradient(circle at center, #0a192f 0%, #030816 100%)', borderRadius: '12px', overflow: 'hidden', border: '1px solid rgba(0, 212, 255, 0.3)', boxShadow: 'inset 0 0 30px rgba(0,0,0,0.8)' }}>
       <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" style={{ width: '100%', height: '100%' }}>
+        
+        <defs>
+          <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="3" result="blur" />
+            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+          </filter>
+        </defs>
+
         {/* Simple grid lines for Longitude and Latitude */}
         {[...Array(13)].map((_, i) => (
-          <line key={`v-${i}`} x1={(i * width) / 12} y1={0} x2={(i * width) / 12} y2={height} stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
+          <line key={`v-${i}`} x1={(i * width) / 12} y1={0} x2={(i * width) / 12} y2={height} stroke="rgba(0, 212, 255, 0.08)" strokeWidth="1" />
         ))}
         {[...Array(7)].map((_, i) => (
-          <line key={`h-${i}`} x1={0} y1={(i * height) / 6} x2={width} y2={(i * height) / 6} stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
+          <line key={`h-${i}`} x1={0} y1={(i * height) / 6} x2={width} y2={(i * height) / 6} stroke="rgba(0, 212, 255, 0.08)" strokeWidth="1" />
         ))}
 
         {/* Equator */}
-        <line x1={0} y1={height / 2} x2={width} y2={height / 2} stroke="rgba(0, 212, 255, 0.3)" strokeWidth="1" strokeDasharray="5,5" />
+        <line x1={0} y1={height / 2} x2={width} y2={height / 2} stroke="rgba(0, 255, 255, 0.4)" strokeWidth="1" strokeDasharray="5,5" filter="url(#glow)" />
 
         {/* Terminator Shadow */}
         <path d={shadowPath} fill="rgba(0, 0, 0, 0.4)" />

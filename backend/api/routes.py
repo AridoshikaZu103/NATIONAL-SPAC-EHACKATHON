@@ -8,6 +8,7 @@ from typing import List, Dict, Any, Optional
 
 from orbital_mechanics.propagator import PropagationEngine, OrbitalState, SpatialIndexing
 from state import global_state
+from database import Database
 
 router = APIRouter(prefix="/api", tags=["orbital"])
 
@@ -108,13 +109,15 @@ async def schedule_maneuver(req: ManeuverRequest):
     for burn in req.maneuver_sequence:
         # Subtract fuel according to hackathon rules (approx 2.5kg per evasion)
         sat["fuel_kg"] = max(0, sat["fuel_kg"] - 2.5)
+        ev_type = "EVASION" if "EVASION" in burn["burn_id"] else "RECOVERY"
         global_state.timeline.append({
             "id": burn["burn_id"],
             "satId": sat["id"],
             "timeStart": global_state.time,
             "timeEnd": global_state.time + 3600,
-            "type": "EVASION" if "EVASION" in burn["burn_id"] else "RECOVERY"
+            "type": ev_type
         })
+        await Database.log_maneuver(burn["burn_id"], sat["id"], global_state.time, global_state.time + 3600, ev_type)
         
     return {
         "status": "SCHEDULED",
@@ -138,6 +141,10 @@ async def simulate_step(req: StepRequest):
             state = engine.rk4_step(state, 10.0)
         sat["position"] = state[:3]
         sat["velocity"] = state[3:]
+        
+        # Log to neon DB
+        lat, lon, alt = PropagationEngine.eci_to_geodetic(sat["position"], global_state.time)
+        await Database.log_telemetry(sat["id"], lat, lon, alt, sat["fuel_kg"])
         
     # 2. Propagate Debris
     for deb in global_state.debris:
@@ -195,6 +202,8 @@ async def simulate_step(req: StepRequest):
                         "timeEnd": ev_end + 3600,
                         "type": "RECOVERY"
                     })
+                    await Database.log_maneuver(f"burn-plan-{thr['id']}", target["id"], max(global_state.time, ev_start), ev_end, "EVASION")
+                    await Database.log_maneuver(f"burn-rec-{thr['id']}", target["id"], ev_end, ev_end + 3600, "RECOVERY")
                 
                 # Autonomously trigger maneuver if critical
                 if is_crit:
