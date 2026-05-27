@@ -1,38 +1,227 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-// 6 fixed ground stations
-const GROUND_STATIONS = [
-  { id: 'IIT Delhi', lat: 28.54, lon: 77.19 },
-  { id: 'Svalbard', lat: 78.22, lon: 15.62 },
-  { id: 'Goldstone', lat: 35.42, lon: -116.89 },
-  { id: 'Punta Arenas', lat: -53.15, lon: -70.90 },
-  { id: 'ISTRAC', lat: 13.03, lon: 77.51 },
-  { id: 'McMurdo', lat: -77.84, lon: 166.66 }
-];
-
-export default function EarthGlobe({ isPaused, satellites, debris, threats, onTelemetryUpdate, onCollisionWarning }) {
+export default function EarthGlobe({ isPaused, satellites = [], debris = [], threats = [], onTelemetryUpdate, onCollisionWarning }) {
+  const mountRef = useRef(null);
   
-  // Send telemetry for alpha-1 every few renders for the sidebar
+  // Refs to hold our 3D groups so we can update them without re-creating the scene
+  const sceneRef = useRef(null);
+  const dataGroupRef = useRef(null);
+
   useEffect(() => {
-    if (satellites.length > 0 && !isPaused) {
-      const s1 = satellites[0];
-      if (onTelemetryUpdate) {
+    if (!mountRef.current) return;
+
+    const TEXTURE_PATH = 'https://s3-us-west-2.amazonaws.com/s.cdpn.io/123879/';
+    const earthRadius = 80;
+    
+    // Scene setup
+    const scene = new THREE.Scene();
+    sceneRef.current = scene;
+
+    const camera = new THREE.PerspectiveCamera(45, mountRef.current.clientWidth / mountRef.current.clientHeight, 1, 10000);
+    camera.position.set(0, 0, earthRadius * 4);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(mountRef.current.clientWidth, mountRef.current.clientHeight);
+    mountRef.current.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enablePan = true;
+    controls.enableZoom = true; 
+    controls.maxDistance = earthRadius * 8;
+    controls.minDistance = earthRadius * 2;
+
+    // Groups
+    const baseRotationPoint = new THREE.Group();
+    scene.add(baseRotationPoint);
+    
+    const worldRotationPoint = new THREE.Group();
+    scene.add(worldRotationPoint);
+
+    const dataGroup = new THREE.Group(); // Holds satellites, debris, threats
+    worldRotationPoint.add(dataGroup);
+    dataGroupRef.current = dataGroup;
+
+    // Lighting
+    scene.add(new THREE.AmbientLight(0x222222));
+
+    const sun = new THREE.PointLight(0xffeecc, 2, 5000);
+    sun.position.set(-400, 0, 100);
+    scene.add(sun);
+
+    // Fill lights
+    const light2 = new THREE.PointLight(0xffffff, 0.6, 4000);
+    light2.position.set(-400, 0, 250);
+    scene.add(light2);
+    
+    const light3 = new THREE.PointLight(0xffffff, 0.6, 4000);
+    light3.position.set(-400, 0, -150);
+    scene.add(light3);
+
+    // Earth Sphere
+    const loader = new THREE.TextureLoader();
+    loader.setCrossOrigin('anonymous');
+    
+    const texture = loader.load(TEXTURE_PATH + 'ColorMap.jpg');
+    const bump = loader.load(TEXTURE_PATH + 'Bump.jpg');
+    const spec = loader.load(TEXTURE_PATH + 'SpecMask.jpg');
+    const alpha = loader.load(TEXTURE_PATH + 'alphaMap.jpg');
+
+    const earthGeo = new THREE.SphereGeometry(earthRadius, 64, 64);
+    const earthMat = new THREE.MeshPhongMaterial({
+      color: 0xffffff,
+      shininess: 5,
+      map: texture,
+      specularMap: spec,
+      specular: new THREE.Color(0x333333),
+      bumpMap: bump,
+    });
+    
+    const sphere = new THREE.Mesh(earthGeo, earthMat);
+    sphere.rotation.y = -1 * (8.7 * Math.PI / 17); // Focus on prime meridian
+    worldRotationPoint.add(sphere);
+
+    // Cloud Layer
+    const cloudGeo = new THREE.SphereGeometry(earthRadius + 0.5, 64, 64);
+    const cloudMat = new THREE.MeshPhongMaterial({
+      alphaMap: alpha,
+      transparent: true,
+      side: THREE.DoubleSide
+    });
+    const sphereCloud = new THREE.Mesh(cloudGeo, cloudMat);
+    worldRotationPoint.add(sphereCloud);
+
+    // Glow Sprite
+    const glowMap = loader.load(TEXTURE_PATH + "glow.png");
+    const spriteMaterial = new THREE.SpriteMaterial({
+      map: glowMap,
+      color: 0x0099ff,
+      transparent: true,
+      blending: THREE.AdditiveBlending
+    });
+    const sprite = new THREE.Sprite(spriteMaterial);
+    sprite.scale.set(earthRadius * 2.5, earthRadius * 2.5, 1.0);
+    worldRotationPoint.add(sprite);
+
+    // Skybox (stars)
+    const cubeLoader = new THREE.CubeTextureLoader();
+    cubeLoader.setCrossOrigin('anonymous');
+    const urls = Array(6).fill(TEXTURE_PATH + 'test.jpg');
+    cubeLoader.load(urls, (textureCube) => {
+      scene.background = textureCube;
+    });
+
+    // Animation Loop
+    let animationId;
+    const animate = () => {
+      animationId = requestAnimationFrame(animate);
+      if (!isPaused) {
+        // Slow continuous rotation
+        worldRotationPoint.rotation.y += 0.0005;
+        sphereCloud.rotation.y += 0.0007; // Clouds move slightly faster
+      }
+      controls.update();
+      renderer.render(scene, camera);
+    };
+    animate();
+
+    // Handle Resize
+    const handleResize = () => {
+      if (!mountRef.current) return;
+      camera.aspect = mountRef.current.clientWidth / mountRef.current.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(mountRef.current.clientWidth, mountRef.current.clientHeight);
+    };
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      cancelAnimationFrame(animationId);
+      if (mountRef.current) mountRef.current.removeChild(renderer.domElement);
+      renderer.dispose();
+    };
+  }, []); // Only run once on mount
+
+  // Sync React State (Satellites, Debris) into Three.js Data Group
+  useEffect(() => {
+    if (!dataGroupRef.current) return;
+    
+    const group = dataGroupRef.current;
+    
+    // Clear existing objects
+    while(group.children.length > 0){ 
+        const child = group.children[0];
+        group.remove(child); 
+        if (child.geometry) child.geometry.dispose();
+        if (child.material) child.material.dispose();
+    }
+
+    const earthRadius = 80;
+
+    // Helper: Convert Lat/Lon/Alt to Cartesian
+    const getPos = (lat, lon, altKm) => {
+      const scale = 1 + (altKm / 6371); 
+      const r = earthRadius * scale;
+      const phi = (90 - lat) * (Math.PI / 180);
+      const theta = (lon + 180) * (Math.PI / 180); // shift lon by 180 to align with map texture
+      
+      const x = -(r * Math.sin(phi) * Math.cos(theta));
+      const z = (r * Math.sin(phi) * Math.sin(theta));
+      const y = r * Math.cos(phi);
+      
+      return new THREE.Vector3(x, y, z);
+    };
+
+    // Draw Satellites (Cyan diamonds)
+    const satGeo = new THREE.OctahedronGeometry(1.5, 0);
+    const satMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, wireframe: true });
+    
+    satellites.forEach((sat, i) => {
+      const mesh = new THREE.Mesh(satGeo, satMat);
+      mesh.position.copy(getPos(sat.lat, sat.lon, sat.alt));
+      group.add(mesh);
+
+      // Report telemetry for alpha-1
+      if (i === 0 && onTelemetryUpdate) {
         onTelemetryUpdate({
-          altitude: s1.alt,
-          velocity: 7.58, // Approx fixed for 550km
-          lat: s1.lat,
-          lon: s1.lon,
+          altitude: sat.alt,
+          velocity: 7.58, 
+          lat: sat.lat,
+          lon: sat.lon,
           inclination: 51.6
         });
       }
-    }
-  }, [satellites, isPaused, onTelemetryUpdate]);
+    });
 
-  // Check collision distance (mock logic for threat)
-  useEffect(() => {
-    if (threats.length > 0 && satellites.length > 0) {
-      const t = threats[0]; // Active threat
-      // If TCA is low, trigger warning
+    // Draw Debris (Blue points)
+    // We use InstancedMesh or Points for performance, but simple Points is easier.
+    if (debris.length > 0) {
+      const pointsGeo = new THREE.BufferGeometry();
+      const vertices = [];
+      // Only draw 500 for perf, debris format: [id, lat, lon, alt]
+      debris.slice(0, 500).forEach(d => {
+        const v = getPos(d[1], d[2], d[3]);
+        vertices.push(v.x, v.y, v.z);
+      });
+      pointsGeo.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+      const pointsMat = new THREE.PointsMaterial({ color: 0x4488ff, size: 0.8 });
+      const points = new THREE.Points(pointsGeo, pointsMat);
+      group.add(points);
+    }
+
+    // Draw Threats (Red pulsing)
+    if (threats.length > 0) {
+      const thrGeo = new THREE.SphereGeometry(2, 16, 16);
+      const thrMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+      threats.forEach(t => {
+        const mesh = new THREE.Mesh(thrGeo, thrMat);
+        mesh.position.copy(getPos(t.pos.lat, t.pos.lon, t.pos.alt));
+        group.add(mesh);
+      });
+
+      // Cola Warning
+      const t = threats[0];
       if (t.timeToCollision < 1800) {
          if (onCollisionWarning) onCollisionWarning(true);
       } else {
@@ -41,55 +230,10 @@ export default function EarthGlobe({ isPaused, satellites, debris, threats, onTe
     } else {
       if (onCollisionWarning) onCollisionWarning(false);
     }
-  }, [threats, satellites, onCollisionWarning]);
 
-  // Helper to map Lat/Lon to a CSS 3D transform string
-  // Radius of the CSS globe is 250px (width 500 / 2). 
-  // We add altitude scaling: Earth=6371km. 550km is approx +8.6% radius. 
-  // 250px * 1.086 = 271.5px orbit radius.
-  const getTransform = (lat, lon, altKm) => {
-    const scale = 1 + (altKm / 6371);
-    const r = 250 * scale;
-    // Rotate Y for Longitude, Rotate X for negative Latitude (CSS Y axis is flipped compared to standard math)
-    return `rotateY(${lon}deg) rotateX(${-lat}deg) translateZ(${r}px)`;
-  };
+  }, [satellites, debris, threats, onTelemetryUpdate, onCollisionWarning]);
 
   return (
-    <div className="css-globe-container">
-      <div className={`css-globe-wrapper ${isPaused ? '' : 'playing'}`}>
-        
-        {/* The 3D Surface (Shading and background) */}
-        <div className="css-globe-surface"></div>
-
-        {/* Render Debris Belt (Limiting to first 200 for CSS DOM performance) */}
-        {debris.slice(0, 200).map(deb => (
-           <div key={deb[0]} className="css-marker css-debris" style={{ transform: getTransform(deb[1], deb[2], deb[3]) }}>
-             <div className="css-marker-inner" />
-           </div>
-        ))}
-
-        {/* Render Ground Stations */}
-        {GROUND_STATIONS.map(gs => (
-           <div key={gs.id} className="css-marker css-gs" style={{ transform: getTransform(gs.lat, gs.lon, 0) }}>
-             <div className="css-marker-inner" title={gs.id} />
-           </div>
-        ))}
-
-        {/* Render Active Satellites */}
-        {satellites.map((sat, i) => (
-           <div key={sat.id} className="css-marker css-sat" style={{ transform: getTransform(sat.lat, sat.lon, sat.alt) }}>
-             <div className="css-marker-inner" title={`α${i+1}`} />
-           </div>
-        ))}
-
-        {/* Render Threats */}
-        {threats.map(thr => (
-           <div key={thr.id} className="css-marker css-threat" style={{ transform: getTransform(thr.pos.lat, thr.pos.lon, thr.pos.alt) }}>
-             <div className="css-marker-inner" />
-           </div>
-        ))}
-
-      </div>
-    </div>
+    <div ref={mountRef} style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 }} />
   );
 }
