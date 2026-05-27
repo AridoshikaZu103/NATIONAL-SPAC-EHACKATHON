@@ -136,6 +136,7 @@ export default function EarthGlobe({ sim }: EarthGlobeProps) {
     };
     const onMouseUp = () => isDragging = false;
     const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
       const newZ = Math.max(1.5, Math.min(8, camera.position.z + e.deltaY * 0.002));
       camera.position.z = newZ;
       if (zoomSliderRef.current) {
