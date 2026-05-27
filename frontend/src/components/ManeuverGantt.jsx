@@ -23,7 +23,7 @@ export default function ManeuverGantt({ timeline, currentTime, satellites }) {
 
   return (
     <div style={{ width: '100%', height: '100%', background: 'rgba(15, 15, 30, 0.6)', borderRadius: '12px', border: '1px solid rgba(0, 212, 255, 0.15)', padding: '16px', display: 'flex', flexDirection: 'column' }}>
-      <h3 style={{ color: '#ffaa00', marginTop: 0, marginBottom: '16px', fontSize: '1rem' }}>⏱️ Maneuver Timeline (Gantt)</h3>
+      <h3 style={{ color: '#ffaa00', marginTop: 0, marginBottom: '16px', fontSize: '1rem', textTransform: 'uppercase', letterSpacing: '2px' }}>Maneuver Timeline (Gantt)</h3>
       
       <div style={{ display: 'flex', flexGrow: 1, position: 'relative' }}>
         

@@ -71,7 +71,7 @@ export default function App() {
         <div className="header-bar">
           <div>
             <h1 className="main-title">
-              🛰️ Orbital Insight SSA
+              ORBITAL INSIGHT SSA
             </h1>
             <p className="subtitle">
               Space Situational Awareness • Advanced Visualization Modules
@@ -83,7 +83,7 @@ export default function App() {
               className={`control-btn ${isPaused ? 'paused' : 'playing'}`}
               onClick={async () => {setIsPaused(!isPaused)}}
             >
-              {isPaused ? '▶️ PLAY' : '⏸️ PAUSE'}
+              {isPaused ? 'PLAY' : 'PAUSE'}
             </button>
           </div>
         </div>
@@ -91,7 +91,7 @@ export default function App() {
         {/* Collision Warning Banner */}
         {colaWarning && !isPaused && (
           <div className="cola-banner">
-            ⚠️ <strong>COLA ALERT:</strong> Close approach detected between α1 and Threat Debris! Automatic evasion burn required.
+            <strong>COLA ALERT:</strong> Close approach detected between α1 and Threat Debris! Automatic evasion burn required.
           </div>
         )}
 
@@ -101,7 +101,7 @@ export default function App() {
           {/* 3D Globe Panel */}
           <div className="globe-panel glass-panel">
             <div className="panel-header">
-              <h2>🌍 Live 3D Orbital View</h2>
+              <h2>LIVE 3D ORBITAL VIEW</h2>
               <span className="hint-badge">
                 Drag to rotate • Scroll to zoom
               </span>
@@ -132,19 +132,19 @@ export default function App() {
 
             {/* Telemetry Panel */}
             <div className="glass-panel">
-              <h2 className="panel-title">📡 Live Telemetry (α1)</h2>
+              <h2 className="panel-title">LIVE TELEMETRY (α1)</h2>
               <div className="info-list">
-                <TelemetryRow label="Altitude" value={`${telemetry.altitude.toFixed(1)} km`} icon="📏" color="#00ff88" />
-                <TelemetryRow label="Velocity" value={`${telemetry.velocity.toFixed(2)} km/s`} icon="⚡" color="#ffaa00" />
-                <TelemetryRow label="Latitude" value={`${telemetry.lat.toFixed(2)}°`} icon="🌐" color="#00d4ff" />
-                <TelemetryRow label="Longitude" value={`${telemetry.lon.toFixed(2)}°`} icon="🌐" color="#00d4ff" />
-                <TelemetryRow label="Inclination" value={`${telemetry.inclination.toFixed(1)}°`} icon="📐" color="#ff66aa" />
+                <TelemetryRow label="Altitude" value={`${telemetry.altitude.toFixed(1)} km`} color="#00ff88" />
+                <TelemetryRow label="Velocity" value={`${telemetry.velocity.toFixed(2)} km/s`} color="#ffaa00" />
+                <TelemetryRow label="Latitude" value={`${telemetry.lat.toFixed(2)}°`} color="#00d4ff" />
+                <TelemetryRow label="Longitude" value={`${telemetry.lon.toFixed(2)}°`} color="#00d4ff" />
+                <TelemetryRow label="Inclination" value={`${telemetry.inclination.toFixed(1)}°`} color="#ff66aa" />
               </div>
             </div>
 
             {/* Simulation Status */}
             <div className="glass-panel">
-              <h2 className="panel-title">⚙️ Engine Status</h2>
+              <h2 className="panel-title">ENGINE STATUS</h2>
               <div className="info-list text-small">
                 <InfoRow label="Constellation" value="Walker Delta (6)" />
                 <InfoRow label="Debris Tracked" value="518" />
@@ -195,10 +195,10 @@ export default function App() {
 }
 
 // ── Components ──
-function TelemetryRow({ label, value, icon, color }) {
+function TelemetryRow({ label, value, color }) {
   return (
     <div className="telemetry-row">
-      <span className="telemetry-label">{icon} {label}</span>
+      <span className="telemetry-label">{label}</span>
       <span className="telemetry-value" style={{ color, textShadow: `0 0 8px ${color}40` }}>{value}</span>
     </div>
   );
