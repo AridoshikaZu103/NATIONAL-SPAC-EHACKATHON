@@ -1,237 +1,272 @@
 import { useState } from 'react';
 import EarthGlobe from './components/EarthGlobe';
 import { ConjunctionBullseye, ManeuverTimeline, FleetFuelStatus, ActiveCDMs } from './components/DashboardPanels';
-import Map2D from './components/Map2D';
 import { useSimulation } from './lib/SimulationEngine';
 import './App.css';
 
+type Page = 'command' | 'analytics' | 'timeline';
+
 function App() {
   const sim = useSimulation();
+  const [page, setPage] = useState<Page>('command');
 
-  // Format time as T+XXXXs
   const formattedTime = `T+${sim.time.toString().padStart(6, '0')}s`;
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: '#050a12',
-      fontFamily: "'Courier New', Courier, monospace",
-      color: '#00d4ff',
-      display: 'flex',
-      flexDirection: 'column',
-      padding: '12px',
-      boxSizing: 'border-box'
-    }}>
-      {/* Header */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingBottom: '12px',
-        borderBottom: '1px solid rgba(0, 212, 255, 0.2)',
-        marginBottom: '12px'
-      }}>
-        <div>
-          <h1 style={{ margin: 0, fontSize: '1.2rem', letterSpacing: '2px', textTransform: 'uppercase' }}>
-            <span style={{ color: '#00ffff' }}>⯁ ORBITAL INSIGHT</span>
-          </h1>
-          <div style={{ fontSize: '0.6rem', color: '#666', marginTop: '2px', letterSpacing: '1px' }}>
-            AUTONOMOUS CONSTELLATION MANAGER v1.0
-          </div>
+    <div className="app-shell">
+      {/* ── Top Bar ── */}
+      <div className="top-bar">
+        <div className="brand">
+          <h1>⯁ Orbital Insight</h1>
+          <span className="subtitle">AUTONOMOUS CONSTELLATION MANAGER v1.0</span>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '0.7rem', color: '#666' }}>EPOCH</span>
-            <span style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{formattedTime}</span>
+        <div className="top-stats">
+          <div className="stat-pill">
+            <span className="label">EPOCH</span>
+            <span className="value">{formattedTime}</span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: sim.isRunning ? '#00ff88' : '#ff4444', boxShadow: `0 0 8px ${sim.isRunning ? '#00ff88' : '#ff4444'}` }}></div>
-            <span style={{ fontSize: '0.7rem', color: sim.isRunning ? '#00ff88' : '#ff4444' }}>{sim.isRunning ? 'ONLINE' : 'OFFLINE'}</span>
+          <div className="stat-pill">
+            <div className={`status-dot ${sim.isRunning ? 'online' : 'offline'}`}></div>
+            <span className="value" style={{ color: sim.isRunning ? 'var(--green)' : 'var(--red)' }}>
+              {sim.isRunning ? 'ONLINE' : 'OFFLINE'}
+            </span>
           </div>
-        </div>
-
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <StatBox label="SATS" value={sim.satellites.length.toString()} />
-          <StatBox label="DEBRIS" value={sim.debris.length.toString()} />
-          <StatBox label="CDMS" value={sim.cdms.length.toString()} color="#ffaa00" />
-          <StatBox label="COLLISIONS" value="0" color="#ff4444" />
+          <div className="stat-pill">
+            <span className="label">SATS</span>
+            <span className="value">{sim.satellites.length}</span>
+          </div>
+          <div className="stat-pill">
+            <span className="label">DEBRIS</span>
+            <span className="value">{sim.debris.length}</span>
+          </div>
+          <div className="stat-pill">
+            <span className="label">CDMs</span>
+            <span className="value" style={{ color: sim.cdms.length > 0 ? 'var(--orange)' : undefined }}>{sim.cdms.length}</span>
+          </div>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div style={{ display: 'flex', flex: 1, gap: '12px', minHeight: 0 }}>
-        
-        {/* Left Panel: Earth Globe */}
-        <div style={{
-          flex: 2,
-          border: '1px solid rgba(0, 212, 255, 0.15)',
-          borderRadius: '4px',
-          background: '#0a0f18',
-          display: 'flex',
-          flexDirection: 'column'
-        }}>
-          <div style={{ padding: '8px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(0, 212, 255, 0.1)' }}>
-            <span style={{ fontSize: '0.8rem', letterSpacing: '1px' }}>GROUND TRACK & 3D GLOBE</span>
-            <div style={{ display: 'flex', gap: '12px', fontSize: '0.7rem' }}>
-              <label><input type="checkbox" checked={sim.showDebris} onChange={(e) => sim.setShowDebris(e.target.checked)} /> DEBRIS</label>
-              <label><input type="checkbox" checked={sim.showTrails} onChange={(e) => sim.setShowTrails(e.target.checked)} /> TRAILS</label>
-            </div>
-          </div>
-          <div style={{ flex: 1, position: 'relative' }}>
-            <EarthGlobe sim={sim} />
-            
-            {/* Legend Overlay */}
-            <div style={{ position: 'absolute', bottom: '12px', left: '12px', display: 'flex', gap: '12px', fontSize: '0.65rem', background: 'rgba(0,0,0,0.5)', padding: '4px 8px', borderRadius: '4px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><div style={{ width:'6px', height:'6px', background:'#00d4ff', borderRadius:'50%' }}></div> SATELLITE</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><div style={{ width:'6px', height:'6px', background:'#4466ff', borderRadius:'50%' }}></div> DEBRIS</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><div style={{ width:'6px', height:'6px', background:'#ffaa00', borderRadius:'50%' }}></div> CDM WARNING</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Panel: Dashboard Data */}
-        <div style={{
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '12px'
-        }}>
-          
-          {/* Top Row: Bullseye & Fuel */}
-          <div style={{ display: 'flex', gap: '12px', height: '220px' }}>
-            <Panel title="CONJUNCTION BULLSEYE" extra={
-              <select 
-                value={sim.selectedSatId} 
-                onChange={e => sim.setSelectedSatId(e.target.value)}
-                style={{ background: 'transparent', color: '#00d4ff', border: '1px solid rgba(0,212,255,0.3)', padding: '2px', fontSize: '0.7rem' }}
-              >
-                {sim.satellites.map(s => <option key={s.id} value={s.id} style={{ background: '#0a0f18' }}>{s.name}</option>)}
-              </select>
-            }>
-              <ConjunctionBullseye selectedSatId={sim.selectedSatId} threats={sim.threats} />
-            </Panel>
-            <Panel title="FLEET FUEL STATUS">
-              <FleetFuelStatus satellites={sim.satellites} />
-            </Panel>
-          </div>
-
-          {/* Middle Row: Timeline */}
-          <div style={{ height: '200px' }}>
-            <Panel title="MANEUVER TIMELINE" extra={<span style={{fontSize:'0.6rem'}}>NOW: {formattedTime}</span>}>
-              <ManeuverTimeline time={sim.time} timeline={sim.timeline} />
-            </Panel>
-          </div>
-
-          {/* Bottom Row: CDMs & Inspector */}
-          <div style={{ display: 'flex', gap: '12px', flex: 1 }}>
-            <div style={{ flex: 2 }}>
-              <Panel title="ACTIVE CONJUNCTION DATA MESSAGES" extra={<span style={{background:'#ff4444', color:'#000', padding:'0 6px', borderRadius:'10px'}}>{sim.cdms.length}</span>}>
-                <ActiveCDMs cdms={sim.cdms} />
-              </Panel>
-            </div>
-            <div style={{ flex: 1 }}>
-              <Panel title="SATELLITE INSPECTOR">
-                <SatelliteInspector sat={sim.satellites.find(s => s.id === sim.selectedSatId)} />
-              </Panel>
-            </div>
-          </div>
-
-        </div>
+      {/* ── Navigation ── */}
+      <div className="nav-tabs">
+        <button className={`nav-tab ${page === 'command' ? 'active' : ''}`} onClick={() => setPage('command')}>
+          🌐 Command Center
+        </button>
+        <button className={`nav-tab ${page === 'analytics' ? 'active' : ''}`} onClick={() => setPage('analytics')}>
+          📊 Analytics
+        </button>
+        <button className={`nav-tab ${page === 'timeline' ? 'active' : ''}`} onClick={() => setPage('timeline')}>
+          📅 Timeline &amp; CDMs
+        </button>
+        <div className="nav-spacer" />
       </div>
 
-      {/* Footer Controls */}
-      <div style={{
-        marginTop: '12px',
-        padding: '8px 12px',
-        background: '#0a0f18',
-        border: '1px solid rgba(0, 212, 255, 0.15)',
-        borderRadius: '4px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '20px',
-        fontSize: '0.8rem'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ color: '#666' }}>SIM STEP</span>
-          <select 
-            value={sim.stepSizeStr} 
-            onChange={e => sim.setStepSizeStr(e.target.value as '10min'|'1hr')}
-            style={{ background: 'transparent', color: '#fff', border: '1px solid #444', padding: '4px' }}
+      {/* ── Page Content ── */}
+      <div className="page-content">
+        {page === 'command' && <CommandPage sim={sim} />}
+        {page === 'analytics' && <AnalyticsPage sim={sim} formattedTime={formattedTime} />}
+        {page === 'timeline' && <TimelinePage sim={sim} formattedTime={formattedTime} />}
+      </div>
+
+      {/* ── Bottom Control Bar ── */}
+      <div className="control-bar">
+        <div className="ctrl-group">
+          <span className="ctrl-label">Step</span>
+          <select
+            className="ctrl-select"
+            value={sim.stepSizeStr}
+            onChange={e => sim.setStepSizeStr(e.target.value as '10min' | '1hr')}
           >
-            <option value="10min">10min</option>
-            <option value="1hr">1hr</option>
+            <option value="10min">10 min</option>
+            <option value="1hr">1 hour</option>
           </select>
         </div>
 
-        <div style={{ display: 'flex', gap: '4px' }}>
-          <button onClick={() => sim.advanceStep()} style={btnStyle}>▶ STEP</button>
-          <button onClick={() => sim.setIsRunning(!sim.isRunning)} style={{...btnStyle, color: sim.isRunning ? '#ff4444' : '#00d4ff'}}>
+        <div className="ctrl-group">
+          <button className="ctrl-btn" onClick={() => sim.advanceStep()}>▶ STEP</button>
+          <button
+            className={`ctrl-btn ${sim.isRunning ? 'running' : ''}`}
+            onClick={() => sim.setIsRunning(!sim.isRunning)}
+          >
             {sim.isRunning ? '◼ STOP' : '▶ AUTO'}
           </button>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderLeft: '1px solid #333', paddingLeft: '20px' }}>
-          <span style={{ color: '#666' }}>SPEED</span>
-          {[0.5, 1, 2, 5, 10].map(s => (
-            <button 
-              key={s} 
+        <div className="ctrl-divider" />
+
+        <div className="ctrl-group">
+          <span className="ctrl-label">Speed</span>
+          {[1, 2, 5, 10].map(s => (
+            <button
+              key={s}
+              className={`ctrl-btn ${sim.speedMult === s ? 'active' : ''}`}
               onClick={() => sim.setSpeedMult(s)}
-              style={{...btnStyle, background: sim.speedMult === s ? 'rgba(0,212,255,0.2)' : 'transparent'}}
             >{s}x</button>
           ))}
         </div>
 
-        <div style={{ flex: 1 }}></div>
+        <div className="ctrl-spacer" />
 
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <button style={btnStyle}>+ DEMO DATA</button>
-          <button onClick={sim.injectThreats} style={{...btnStyle, border: '1px solid #ff4444', color: '#ff4444', background: 'rgba(255,68,68,0.1)'}}>
-            ⚠ THREATS
+        <div className="ctrl-group">
+          <button
+            className="ctrl-btn danger"
+            onClick={async () => {
+              await sim.injectThreats();
+              // Immediately step so CDMs + timeline populate
+              await sim.advanceStep();
+            }}
+          >
+            ⚠ INJECT THREATS
           </button>
         </div>
       </div>
+    </div>
+  );
+}
 
-      {/* Bottom 2D Map */}
-      <div style={{
-        marginTop: '12px',
-        border: '1px solid rgba(0, 212, 255, 0.15)',
-        borderRadius: '4px',
-        background: '#0a0f18',
-        display: 'flex',
-        flexDirection: 'column',
-        height: '500px'
-      }}>
-        <div style={{ padding: '8px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(0, 212, 255, 0.1)' }}>
-          <span style={{ fontSize: '0.8rem', letterSpacing: '1px' }}>GLOBAL TRACKING (2D PROJECTION)</span>
+/* ═══════════════════════════════════════════════
+   PAGE: Command Center (3D Globe + sidebar)
+   ═══════════════════════════════════════════════ */
+function CommandPage({ sim }: { sim: any }) {
+  return (
+    <div className="page-globe">
+      <div className="globe-main">
+        <EarthGlobe sim={sim} />
+
+        {/* Toggle Chips */}
+        <div className="globe-overlay-toggles">
+          <label className="toggle-chip">
+            <input type="checkbox" checked={sim.showDebris} onChange={e => sim.setShowDebris(e.target.checked)} />
+            DEBRIS
+          </label>
+          <label className="toggle-chip">
+            <input type="checkbox" checked={sim.showTrails} onChange={e => sim.setShowTrails(e.target.checked)} />
+            TRAILS
+          </label>
         </div>
-        <div style={{ flex: 1, position: 'relative' }}>
-          <Map2D sim={sim} />
+
+        {/* Legend */}
+        <div className="globe-overlay-legend">
+          <span className="legend-item"><span className="legend-dot" style={{ background: '#00d4ff' }}></span> Satellite</span>
+          <span className="legend-item"><span className="legend-dot" style={{ background: '#4466ff' }}></span> Debris</span>
+          <span className="legend-item"><span className="legend-dot" style={{ background: '#ff4444' }}></span> Threat</span>
+          <span className="legend-item"><span className="legend-dot" style={{ background: '#00ff00' }}></span> Ground Stn</span>
+          <span className="legend-item"><span className="legend-dot" style={{ background: '#ffaa00' }}></span> Terminator</span>
         </div>
       </div>
 
+      {/* Sidebar */}
+      <div className="globe-sidebar">
+        <Panel title="SATELLITE INSPECTOR">
+          <SatelliteInspector sat={sim.satellites.find((s: any) => s.id === sim.selectedSatId)} />
+          <div style={{ marginTop: '10px' }}>
+            <select
+              className="ctrl-select"
+              style={{ width: '100%' }}
+              value={sim.selectedSatId}
+              onChange={e => sim.setSelectedSatId(e.target.value)}
+            >
+              {sim.satellites.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </div>
+        </Panel>
+        <Panel title="FLEET FUEL STATUS">
+          <FleetFuelStatus satellites={sim.satellites} />
+        </Panel>
+        <Panel title="CONJUNCTION BULLSEYE">
+          <ConjunctionBullseye selectedSatId={sim.selectedSatId} threats={sim.threats} />
+        </Panel>
+      </div>
     </div>
   );
 }
 
-// Helpers
-function StatBox({ label, value, color = '#00d4ff' }: { label: string, value: string, color?: string }) {
+/* ═══════════════════════════════════════════════
+   PAGE: Analytics
+   ═══════════════════════════════════════════════ */
+function AnalyticsPage({ sim, formattedTime }: { sim: any, formattedTime: string }) {
   return (
-    <div style={{ border: '1px solid rgba(255,255,255,0.1)', padding: '4px 12px', display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '60px' }}>
-      <div style={{ fontSize: '1.2rem', color }}>{value}</div>
-      <div style={{ fontSize: '0.5rem', color: '#666' }}>{label}</div>
+    <div className="page-analytics">
+      <Panel title="CONJUNCTION BULLSEYE" extra={
+        <select
+          className="ctrl-select"
+          value={sim.selectedSatId}
+          onChange={e => sim.setSelectedSatId(e.target.value)}
+        >
+          {sim.satellites.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
+        </select>
+      }>
+        <ConjunctionBullseye selectedSatId={sim.selectedSatId} threats={sim.threats} />
+      </Panel>
+      <Panel title="FLEET FUEL STATUS">
+        <FleetFuelStatus satellites={sim.satellites} />
+      </Panel>
+      <Panel title="MANEUVER TIMELINE" extra={<span style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>{formattedTime}</span>}>
+        <ManeuverTimeline time={sim.time} timeline={sim.timeline} />
+      </Panel>
+      <Panel title="SATELLITE INSPECTOR">
+        <SatelliteInspector sat={sim.satellites.find((s: any) => s.id === sim.selectedSatId)} />
+        <div style={{ marginTop: '12px' }}>
+          <select
+            className="ctrl-select"
+            style={{ width: '100%' }}
+            value={sim.selectedSatId}
+            onChange={e => sim.setSelectedSatId(e.target.value)}
+          >
+            {sim.satellites.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+        </div>
+      </Panel>
     </div>
   );
 }
 
+/* ═══════════════════════════════════════════════
+   PAGE: Timeline & CDMs
+   ═══════════════════════════════════════════════ */
+function TimelinePage({ sim, formattedTime }: { sim: any, formattedTime: string }) {
+  return (
+    <div className="page-timeline">
+      <Panel title="MANEUVER TIMELINE" extra={<span style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>{formattedTime}</span>}>
+        <ManeuverTimeline time={sim.time} timeline={sim.timeline} />
+      </Panel>
+      <div className="panel-half">
+        <Panel title="ACTIVE CONJUNCTION DATA MESSAGES" extra={
+          <span style={{ background: sim.cdms.length > 0 ? 'var(--red)' : 'var(--text-muted)', color: '#000', padding: '1px 8px', borderRadius: '10px', fontWeight: 'bold', fontSize: '0.6rem' }}>
+            {sim.cdms.length}
+          </span>
+        }>
+          <ActiveCDMs cdms={sim.cdms} />
+        </Panel>
+        <Panel title="SATELLITE INSPECTOR">
+          <SatelliteInspector sat={sim.satellites.find((s: any) => s.id === sim.selectedSatId)} />
+          <div style={{ marginTop: '12px' }}>
+            <select
+              className="ctrl-select"
+              style={{ width: '100%' }}
+              value={sim.selectedSatId}
+              onChange={e => sim.setSelectedSatId(e.target.value)}
+            >
+              {sim.satellites.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </div>
+        </Panel>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════
+   Shared Components
+   ═══════════════════════════════════════════════ */
 function Panel({ title, extra, children }: { title: string, extra?: React.ReactNode, children: React.ReactNode }) {
   return (
-    <div style={{ border: '1px solid rgba(0, 212, 255, 0.15)', background: '#0a0f18', display: 'flex', flexDirection: 'column', flex: 1, borderRadius: '4px', overflow: 'hidden' }}>
-      <div style={{ padding: '6px 12px', background: 'rgba(0,212,255,0.05)', borderBottom: '1px solid rgba(0,212,255,0.1)', fontSize: '0.7rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div className="panel">
+      <div className="panel-header">
         <span>{title}</span>
         {extra}
       </div>
-      <div style={{ padding: '12px', flex: 1, overflow: 'hidden' }}>
+      <div className="panel-body">
         {children}
       </div>
     </div>
@@ -239,30 +274,34 @@ function Panel({ title, extra, children }: { title: string, extra?: React.ReactN
 }
 
 function SatelliteInspector({ sat }: { sat?: any }) {
-  if (!sat) return <div style={{ color: '#666', fontSize: '0.7rem', textAlign: 'center', marginTop: '40px' }}>Click a satellite on the map to inspect</div>;
-  
+  if (!sat) return (
+    <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textAlign: 'center', padding: '30px 0' }}>
+      Select a satellite to inspect
+    </div>
+  );
+
+  const rows = [
+    { label: 'STATUS', value: sat.status || 'NOMINAL', color: 'var(--green)' },
+    { label: 'LATITUDE', value: `${sat.pos.lat.toFixed(2)}°`, color: 'var(--cyan)' },
+    { label: 'LONGITUDE', value: `${sat.pos.lon.toFixed(2)}°`, color: 'var(--cyan)' },
+    { label: 'ALTITUDE', value: `${sat.pos.alt.toFixed(0)} km`, color: 'var(--cyan)' },
+    { label: 'FUEL', value: `${sat.fuelKg.toFixed(1)} kg (${Math.round(sat.fuelPercent)}%)`, color: sat.fuelPercent > 50 ? 'var(--green)' : 'var(--orange)' },
+    { label: 'DRIFT', value: `${sat.drift.toFixed(3)} km`, color: 'var(--text-primary)' },
+  ];
+
   return (
-    <div style={{ fontSize: '0.75rem', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-      <div style={{ color: '#00d4ff', fontWeight: 'bold', borderBottom: '1px solid rgba(0,212,255,0.2)', paddingBottom: '4px', marginBottom: '4px' }}>{sat.name}</div>
-      <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{color:'#666'}}>STATUS</span><span style={{color:'#00ff88'}}>NOMINAL</span></div>
-      <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{color:'#666'}}>LAT</span><span>{sat.pos.lat.toFixed(1)}°</span></div>
-      <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{color:'#666'}}>LON</span><span>{sat.pos.lon.toFixed(1)}°</span></div>
-      <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{color:'#666'}}>ALT</span><span>{sat.pos.alt.toFixed(0)} km</span></div>
-      <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{color:'#666'}}>FUEL</span><span>{sat.fuelKg.toFixed(2)} kg ({Math.round(sat.fuelPercent)}%)</span></div>
-      <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{color:'#666'}}>SLOT DRIFT</span><span>{sat.drift.toFixed(3)} km</span></div>
+    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem' }}>
+      <div style={{ color: 'var(--cyan)', fontWeight: 'bold', fontSize: '0.8rem', marginBottom: '10px', paddingBottom: '6px', borderBottom: '1px solid var(--border-dim)' }}>
+        {sat.name}
+      </div>
+      {rows.map(r => (
+        <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+          <span style={{ color: 'var(--text-muted)' }}>{r.label}</span>
+          <span style={{ color: r.color }}>{r.value}</span>
+        </div>
+      ))}
     </div>
   );
 }
-
-const btnStyle = {
-  background: 'transparent',
-  border: '1px solid rgba(0,212,255,0.3)',
-  color: '#00d4ff',
-  padding: '4px 12px',
-  cursor: 'pointer',
-  fontSize: '0.7rem',
-  borderRadius: '2px',
-  fontFamily: 'inherit'
-};
 
 export default App;
