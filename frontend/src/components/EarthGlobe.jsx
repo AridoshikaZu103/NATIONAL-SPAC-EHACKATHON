@@ -2,6 +2,15 @@ import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
+const GROUND_STATIONS = [
+  { id: 'IIT Delhi', lat: 28.54, lon: 77.19 },
+  { id: 'Svalbard', lat: 78.22, lon: 15.62 },
+  { id: 'Goldstone', lat: 35.42, lon: -116.89 },
+  { id: 'Punta Arenas', lat: -53.15, lon: -70.90 },
+  { id: 'ISTRAC', lat: 13.03, lon: 77.51 },
+  { id: 'McMurdo', lat: -77.84, lon: 166.66 }
+];
+
 export default function EarthGlobe({ isPaused, satellites = [], debris = [], threats = [], onTelemetryUpdate, onCollisionWarning }) {
   const mountRef = useRef(null);
   
@@ -112,29 +121,13 @@ export default function EarthGlobe({ isPaused, satellites = [], debris = [], thr
       scene.background = textureCube;
     });
 
-    // UTC Day/Night cycle logic from main.js
-    const getEarthRotation = () => {
-      const d = new Date();
-      const h = d.getUTCHours();
-      const m = d.getUTCMinutes();
-      let minutes = h * 60 + m;
-      let degrees = minutes / 3.9907 + 90; // 90 degree offset
-      return degrees;
-    };
-
     // Animation Loop
     let animationId;
     const animate = () => {
       animationId = requestAnimationFrame(animate);
       if (!isPaused) {
-        // Update Earth rotation to match UTC time so the terminator (day/night) is accurate
-        worldRotationPoint.rotation.y = getEarthRotation() * (Math.PI / 180);
-        
         // Clouds move slightly independently
         sphereCloud.rotation.y += 0.00025;
-        
-        // Rotate the base to slowly orbit the camera around the earth
-        // But since we use OrbitControls, this might fight it. We will leave baseRotationPoint stationary to let user control camera.
       }
       controls.update();
       renderer.render(scene, camera);
@@ -207,6 +200,18 @@ export default function EarthGlobe({ isPaused, satellites = [], debris = [], thr
           inclination: 51.6
         });
       }
+    });
+
+    // Draw Ground Stations (Green Triangles / Cones)
+    const gsGeo = new THREE.ConeGeometry(1.5, 3, 4);
+    gsGeo.rotateX(Math.PI / 2); // Point outward
+    const gsMat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+    GROUND_STATIONS.forEach(gs => {
+      const mesh = new THREE.Mesh(gsGeo, gsMat);
+      const pos = getPos(gs.lat, gs.lon, 0);
+      mesh.position.copy(pos);
+      mesh.lookAt(new THREE.Vector3(0,0,0)); // base facing earth
+      group.add(mesh);
     });
 
     // Draw Debris (Blue points)
