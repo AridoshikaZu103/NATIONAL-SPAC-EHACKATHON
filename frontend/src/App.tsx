@@ -30,6 +30,7 @@ export default function App() {
   // Backend state for visualization modules
   const [simTime, setSimTime] = useState(0);
   const [satellites, setSatellites] = useState<any[]>([]);
+  const [debris, setDebris] = useState<any[]>([]);
   const [threats, setThreats] = useState<any[]>([]);
   const [timeline, setTimeline] = useState<any[]>([]);
 
@@ -45,6 +46,7 @@ export default function App() {
         
         setSimTime(data.time);
         setSatellites(data.satellites || []);
+        setDebris(data.debris_cloud || []);
         
         // The API returns threats with timeToCollision
         setThreats(data.threats || []);
@@ -124,6 +126,9 @@ export default function App() {
             <div className="globe-container">
               <EarthGlobe 
                 isPaused={isPaused} 
+                satellites={satellites}
+                debris={debris}
+                threats={threats}
                 onTelemetryUpdate={handleTelemetryUpdate}
                 onCollisionWarning={handleCollisionWarning}
               />
