@@ -1,38 +1,80 @@
-# Orbital Insight Dashboard
+# Orbital Insight - SSA Dashboard
 
-Autonomous Constellation Manager v1.0 - A "submission-ready" React frontend demonstrating live tracking of satellites, space debris, and real-time Conjunction Data Messages (CDMs) using simulated orbital mechanics.
+A fully responsive, 3D WebGL dashboard for Space Situational Awareness (SSA), demonstrating collision avoidance algorithms (COLA) and constellation tracking. 
 
 ## Features
-- **Live 3D Earth Globe:** Fully interactive high-resolution 3D view of satellites and debris.
-- **Conjunction Bullseye:** Radar-style tracking of threat objects approaching satellites.
-- **Active CDMs:** Table showing calculated Time to Closest Approach (TCA) and Risk metrics.
-- **Maneuver Timeline:** Visualization of evasion and recovery burns triggered autonomously.
-- **Fleet Fuel Status:** Live tracking of satellite fuel levels during evasion maneuvers.
-- **Simulation Engine:** Built-in React state engine handling 6 satellites, 518 background debris objects, and dynamically injected threats.
+- **Live 3D Globe Simulation**: Built with React and Three.js.
+- **Walker Delta Constellation**: Tracks 6 active satellites orbiting in a uniform pattern.
+- **Debris Belt Tracking**: Simulates 518 debris objects orbiting Earth.
+- **Collision Avoidance (COLA)**: Triggers an alert when threat debris gets too close to an active satellite.
+- **Play/Pause Engine**: Allows pausing the simulation time without freezing the viewport navigation.
+- **Responsive Design**: Adapts cleanly from desktop displays to mobile phones without overlapping panels.
 
-## Quickstart
+---
 
-### Prerequisites
-- Node.js v18+
-- npm or yarn
+## Visual Legend
 
-### Setup
-1. Navigate to the `frontend` directory:
-   ```bash
-   cd frontend
-   ```
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Start the development server:
-   ```bash
-   npm run dev
-   ```
-4. Open your browser to `http://localhost:5173`.
+| Symbol | Color | Representation | Description |
+| :--- | :--- | :--- | :--- |
+| **◆** Diamond | <span style="color:#00ffff">Cyan</span> | **Active Satellites (α1-α6)** | A 6-satellite Walker Delta constellation at 550km altitude, moving counter-clockwise. |
+| **●** Dot | <span style="color:#4488ff">Blue</span> | **Debris Field** | 518 tracked debris items (dead satellites, rockets, bolts) forming an orbital belt. |
+| **■** Square | <span style="color:#ff0000">Red</span> | **Threat Object** | A piece of debris injected directly onto a collision path with α1. |
+| **▲** Triangle | <span style="color:#00ff00">Green</span> | **Ground Stations** | 6 ground communication hubs required for uplinking burn commands. |
+| **--** Line | <span style="color:#ffcc00">Yellow (Dashed)</span> | **Terminator Line** | The day/night boundary. Satellites switch to battery power on the dark side. |
+| **--** Ring | <span style="color:#666666">Gray (Dashed)</span> | **Orbital Ring** | The primary 550km altitude circular orbital path. |
 
-### Usage
-- Use the **SIM STEP** dropdown to control time jump resolution.
-- Click **▶ AUTO** to start the simulation loop.
-- Change the **SPEED** multiplier (e.g., 10x) for faster visualization.
-- Click **⚠ THREATS** to inject objects on collision courses with the fleet and watch the autonomous COLA (Collision Avoidance) engine react!
+---
+
+## Ground Stations Reference
+
+The following ground stations are physically placed on the 3D globe:
+
+| Station Name | Latitude | Longitude | Location |
+| :--- | :--- | :--- | :--- |
+| **IIT Delhi** | 28.54° N | 77.19° E | India |
+| **Svalbard** | 78.22° N | 15.62° E | Norway (Arctic) |
+| **Goldstone** | 35.42° N | 116.89° W | California, USA |
+| **Punta Arenas** | 53.15° S | 70.90° W | Chile |
+| **ISTRAC** | 13.03° N | 77.51° E | India |
+| **McMurdo** | 77.84° S | 166.66° E | Antarctica |
+
+---
+
+## Setup & Running the Application
+
+This project features a React/Vite frontend and a FastAPI backend. Both must be running simultaneously.
+
+### 1. Backend Setup
+The backend handles the Python-based orbital mechanics propagation and API endpoints.
+
+```bash
+# 1. Navigate to the project root
+cd CODE/NATIONAL_SPACE_HACKATHON
+
+# 2. Activate the virtual environment
+# Windows:
+.\.venv\Scripts\activate
+# Mac/Linux:
+source .venv/bin/activate
+
+# 3. Start the FastAPI server (runs on port 8000)
+python backend/main.py
+```
+
+### 2. Frontend Setup
+The frontend renders the 3D dashboard using Three.js and React.
+
+```bash
+# 1. Navigate to the frontend directory
+cd CODE/NATIONAL_SPACE_HACKATHON/frontend
+
+# 2. Install dependencies (First time only)
+npm install
+
+# 3. Start the Vite dev server (runs on port 5173)
+npm run dev
+```
+
+### 3. View the Dashboard
+Open your web browser and navigate to:
+**[http://localhost:5173](http://localhost:5173)**
