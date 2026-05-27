@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import EarthGlobe from './components/EarthGlobe';
-import WorldMap2D from './components/WorldMap2D';
 import { ConjunctionBullseye, ManeuverTimeline, FleetFuelStatus, ActiveCDMs } from './components/DashboardPanels';
 import { useSimulation } from './lib/SimulationEngine';
 import './App.css';
@@ -62,55 +61,30 @@ function App() {
       {/* Main Content */}
       <div style={{ display: 'flex', flex: 1, gap: '12px', minHeight: 0 }}>
         
-        {/* Left Panel: Maps */}
+        {/* Left Panel: Earth Globe */}
         <div style={{
           flex: 2,
+          border: '1px solid rgba(0, 212, 255, 0.15)',
+          borderRadius: '4px',
+          background: '#0a0f18',
           display: 'flex',
-          flexDirection: 'column',
-          gap: '12px'
+          flexDirection: 'column'
         }}>
-          {/* Top Map: 3D Globe */}
-          <div style={{
-            flex: 1,
-            border: '1px solid rgba(0, 212, 255, 0.15)',
-            borderRadius: '4px',
-            background: '#0a0f18',
-            display: 'flex',
-            flexDirection: 'column'
-          }}>
-            <div style={{ padding: '8px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(0, 212, 255, 0.1)' }}>
-              <span style={{ fontSize: '0.8rem', letterSpacing: '1px' }}>3D GLOBE MAP</span>
-              <div style={{ display: 'flex', gap: '12px', fontSize: '0.7rem' }}>
-                <label><input type="checkbox" defaultChecked /> DEBRIS</label>
-                <label><input type="checkbox" defaultChecked /> TRAILS</label>
-              </div>
-            </div>
-            <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-              <EarthGlobe sim={sim} />
-              
-              {/* Legend Overlay */}
-              <div style={{ position: 'absolute', bottom: '12px', left: '12px', display: 'flex', gap: '12px', fontSize: '0.65rem', background: 'rgba(0,0,0,0.5)', padding: '4px 8px', borderRadius: '4px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><div style={{ width:'6px', height:'6px', background:'#00d4ff', borderRadius:'50%' }}></div> SATELLITE</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><div style={{ width:'6px', height:'6px', background:'#4466ff', borderRadius:'50%' }}></div> DEBRIS</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><div style={{ width:'6px', height:'6px', background:'#ffaa00', borderRadius:'50%' }}></div> CDM WARNING</div>
-              </div>
+          <div style={{ padding: '8px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(0, 212, 255, 0.1)' }}>
+            <span style={{ fontSize: '0.8rem', letterSpacing: '1px' }}>GROUND TRACK & 3D GLOBE</span>
+            <div style={{ display: 'flex', gap: '12px', fontSize: '0.7rem' }}>
+              <label><input type="checkbox" defaultChecked /> DEBRIS</label>
+              <label><input type="checkbox" defaultChecked /> TRAILS</label>
             </div>
           </div>
-
-          {/* Bottom Map: 2D World Map */}
-          <div style={{
-            flex: 1,
-            border: '1px solid rgba(0, 212, 255, 0.15)',
-            borderRadius: '4px',
-            background: '#0a0f18',
-            display: 'flex',
-            flexDirection: 'column'
-          }}>
-            <div style={{ padding: '8px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(0, 212, 255, 0.1)' }}>
-              <span style={{ fontSize: '0.8rem', letterSpacing: '1px' }}>2D WORLD MAP</span>
-            </div>
-            <div style={{ flex: 1, position: 'relative' }}>
-              <WorldMap2D sim={sim} />
+          <div style={{ flex: 1, position: 'relative' }}>
+            <EarthGlobe sim={sim} />
+            
+            {/* Legend Overlay */}
+            <div style={{ position: 'absolute', bottom: '12px', left: '12px', display: 'flex', gap: '12px', fontSize: '0.65rem', background: 'rgba(0,0,0,0.5)', padding: '4px 8px', borderRadius: '4px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><div style={{ width:'6px', height:'6px', background:'#00d4ff', borderRadius:'50%' }}></div> SATELLITE</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><div style={{ width:'6px', height:'6px', background:'#4466ff', borderRadius:'50%' }}></div> DEBRIS</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><div style={{ width:'6px', height:'6px', background:'#ffaa00', borderRadius:'50%' }}></div> CDM WARNING</div>
             </div>
           </div>
         </div>
