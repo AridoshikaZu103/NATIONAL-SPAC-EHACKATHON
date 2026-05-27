@@ -30,8 +30,10 @@ export default function EarthGlobe({ sim }: EarthGlobeProps) {
     satellites: Record<string, THREE.Mesh>,
     debris: THREE.Points | null,
     threats: Record<string, THREE.Mesh>,
+    trails: Record<string, THREE.Vector3[]>,
+    trailMeshes: Record<string, THREE.Line>,
     earthGroup: THREE.Group | null
-  }>({ satellites: {}, debris: null, threats: {}, earthGroup: null });
+  }>({ satellites: {}, debris: null, threats: {}, trails: {}, trailMeshes: {}, earthGroup: null });
 
   const initScene = useCallback(() => {
     if (!containerRef.current) return;
@@ -114,6 +116,34 @@ export default function EarthGlobe({ sim }: EarthGlobeProps) {
       gsMesh.lookAt(new THREE.Vector3(0,0,0)); // point inward
       earthGroup.add(gsMesh);
     });
+
+    // Orbital Ring (550km)
+    const r_orb = 1.0 + (550 / 6371);
+    const orbitPoints = [];
+    for(let i=0; i<=128; i++) {
+      const a = (i/128) * Math.PI * 2;
+      // Orbit is inclined roughly in XY plane (equatorial).
+      // Based on our init_satellites: x = r*cos, y = r*sin, z = r*inc
+      orbitPoints.push(new THREE.Vector3(Math.cos(a)*r_orb, Math.sin(a)*r_orb, 0));
+    }
+    const orbitGeo = new THREE.BufferGeometry().setFromPoints(orbitPoints);
+    const orbitMat = new THREE.LineDashedMaterial({ color: 0xffffff, dashSize: 0.04, gapSize: 0.04, transparent: true, opacity: 0.3 });
+    const orbitalRing = new THREE.Line(orbitGeo, orbitMat);
+    orbitalRing.computeLineDistances();
+    earthGroup.add(orbitalRing);
+
+    // Terminator Line (Dashed yellow, day/night boundary)
+    // Roughly perpendicular to sun. Let's make it a ring around YZ plane (if sun is at X axis).
+    const termPoints = [];
+    for(let i=0; i<=128; i++) {
+      const a = (i/128) * Math.PI * 2;
+      termPoints.push(new THREE.Vector3(0, Math.cos(a)*1.001, Math.sin(a)*1.001));
+    }
+    const termGeo = new THREE.BufferGeometry().setFromPoints(termPoints);
+    const termMat = new THREE.LineDashedMaterial({ color: 0xffaa00, dashSize: 0.04, gapSize: 0.04 });
+    const terminator = new THREE.Line(termGeo, termMat);
+    terminator.computeLineDistances();
+    earthGroup.add(terminator);
 
     // Mouse Controls
     let isDragging = false;
@@ -210,6 +240,33 @@ export default function EarthGlobe({ sim }: EarthGlobeProps) {
         mesh.scale.setScalar(1);
         (mesh.material as THREE.MeshBasicMaterial).color.setHex(0x00d4ff);
       }
+
+      // Update Trails
+      let history = objectsRef.current.trails[sat.id];
+      if (!history) {
+        history = [];
+        objectsRef.current.trails[sat.id] = history;
+      }
+      
+      const newPos = mesh.position.clone();
+      if (history.length === 0 || history[history.length - 1].distanceTo(newPos) > 0.01) {
+        history.push(newPos);
+        if (history.length > 50) history.shift();
+      }
+
+      let trailMesh = objectsRef.current.trailMeshes[sat.id];
+      if (!trailMesh) {
+        const mat = new THREE.LineBasicMaterial({ color: 0x00d4ff, transparent: true, opacity: 0.4 });
+        const geo = new THREE.BufferGeometry();
+        trailMesh = new THREE.Line(geo, mat);
+        group.add(trailMesh);
+        objectsRef.current.trailMeshes[sat.id] = trailMesh;
+      }
+
+      trailMesh.visible = sim.showTrails;
+      if (sim.showTrails && history.length > 1) {
+        trailMesh.geometry.setFromPoints(history);
+      }
     });
 
     // Update Debris (Points)
@@ -222,15 +279,20 @@ export default function EarthGlobe({ sim }: EarthGlobeProps) {
       group.add(points);
       objectsRef.current.debris = points;
     }
-    const debPositions = objectsRef.current.debris.geometry.attributes.position.array as Float32Array;
-    sim.debris.forEach((deb: Debris, i: number) => {
-      const r = 1.0 + (deb.pos.alt / 6371);
-      const v = latLonToVec3(deb.pos.lat, deb.pos.lon, r);
-      debPositions[i*3] = v.x;
-      debPositions[i*3+1] = v.y;
-      debPositions[i*3+2] = v.z;
-    });
-    objectsRef.current.debris.geometry.attributes.position.needsUpdate = true;
+    
+    objectsRef.current.debris.visible = sim.showDebris;
+    
+    if (sim.showDebris) {
+      const debPositions = objectsRef.current.debris.geometry.attributes.position.array as Float32Array;
+      sim.debris.forEach((deb: Debris, i: number) => {
+        const r = 1.0 + (deb.pos.alt / 6371);
+        const v = latLonToVec3(deb.pos.lat, deb.pos.lon, r);
+        debPositions[i*3] = v.x;
+        debPositions[i*3+1] = v.y;
+        debPositions[i*3+2] = v.z;
+      });
+      objectsRef.current.debris.geometry.attributes.position.needsUpdate = true;
+    }
 
     // Update Threats
     // First, clear missing threats
