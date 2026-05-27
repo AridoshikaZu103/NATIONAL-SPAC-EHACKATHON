@@ -1,39 +1,12 @@
 import { useEffect, useRef, useCallback } from 'react';
 import * as THREE from 'three';
-
-// ── Satellite data type ──
-interface SatellitePoint {
-  time: number;
-  lat: number;
-  lon: number;
-  altitude: number;
-  velocity: number;
-}
+import { Satellite, Debris, Threat, GroundStation } from '../lib/SimulationEngine';
 
 interface EarthGlobeProps {
-  onTelemetryUpdate?: (data: {
-    altitude: number;
-    velocity: number;
-    lat: number;
-    lon: number;
-    inclination: number;
-  }) => void;
+  sim: any; // Return type of useSimulation
 }
 
-// ── Convert ECI (km) to lat/lon/alt ──
-function eciToGeo(x: number, y: number, z: number, t: number): { lat: number; lon: number; alt: number } {
-  const R = 6371;
-  const r = Math.sqrt(x * x + y * y + z * z);
-  const lat = Math.asin(z / r) * (180 / Math.PI);
-  // Rotate with Earth (simplified GMST)
-  const gmst = (t / 3600) * 15; // degrees per hour
-  const lonEci = Math.atan2(y, x) * (180 / Math.PI);
-  const lon = ((lonEci - gmst + 540) % 360) - 180;
-  const alt = r - R;
-  return { lat, lon, alt };
-}
-
-// ── Convert lat/lon to 3D sphere position ──
+// Convert lat/lon to 3D sphere position
 function latLonToVec3(lat: number, lon: number, radius: number): THREE.Vector3 {
   const phi = (90 - lat) * (Math.PI / 180);
   const theta = (lon + 180) * (Math.PI / 180);
@@ -44,287 +17,113 @@ function latLonToVec3(lat: number, lon: number, radius: number): THREE.Vector3 {
   );
 }
 
-// ── Generate ISS-like orbit data (no backend needed for demo) ──
-function generateOrbitData(): SatellitePoint[] {
-  const points: SatellitePoint[] = [];
-  const R = 6371;
-  const alt = 408; // ISS altitude km
-  const r = R + alt;
-  const mu = 398600.4418;
-  const v = Math.sqrt(mu / r); // orbital velocity
-  const inclination = 51.6 * (Math.PI / 180); // ISS inclination
-  const period = 2 * Math.PI * r / v;
-
-  for (let i = 0; i < 500; i++) {
-    const t = (i / 500) * period;
-    const angle = (2 * Math.PI * t) / period;
-
-    // Simple orbital mechanics in ECI
-    const x = r * Math.cos(angle);
-    const yOrb = r * Math.sin(angle);
-    const xEci = x;
-    const yEci = yOrb * Math.cos(inclination);
-    const zEci = yOrb * Math.sin(inclination);
-
-    const geo = eciToGeo(xEci, yEci, zEci, t);
-
-    points.push({
-      time: t,
-      lat: geo.lat,
-      lon: geo.lon,
-      altitude: geo.alt,
-      velocity: v,
-    });
-  }
-  return points;
-}
-
-export default function EarthGlobe({ onTelemetryUpdate }: EarthGlobeProps) {
+export default function EarthGlobe({ sim }: EarthGlobeProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
-  const frameRef = useRef<number>(0);
   const sceneRef = useRef<THREE.Scene | null>(null);
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const frameRef = useRef<number>(0);
+  const zoomSliderRef = useRef<HTMLInputElement>(null);
+  
+  // Refs for dynamic objects so we don't recreate them every render
+  const objectsRef = useRef<{
+    satellites: Record<string, THREE.Mesh>,
+    debris: THREE.Points | null,
+    threats: Record<string, THREE.Mesh>,
+    earthGroup: THREE.Group | null
+  }>({ satellites: {}, debris: null, threats: {}, earthGroup: null });
 
   const initScene = useCallback(() => {
     if (!containerRef.current) return;
 
-    // Clean up previous
-    if (rendererRef.current) {
-      rendererRef.current.dispose();
-      cancelAnimationFrame(frameRef.current);
-    }
-
     const width = containerRef.current.clientWidth;
     const height = containerRef.current.clientHeight;
 
-    // ── Scene ──
     const scene = new THREE.Scene();
     sceneRef.current = scene;
 
-    // ── Camera ──
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
     camera.position.set(0, 0, 3.5);
+    cameraRef.current = camera;
 
-    // ── Renderer ──
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
     containerRef.current.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
-    // ── Stars background ──
-    const starsGeo = new THREE.BufferGeometry();
-    const starsCount = 2000;
-    const starPositions = new Float32Array(starsCount * 3);
-    for (let i = 0; i < starsCount * 3; i++) {
-      starPositions[i] = (Math.random() - 0.5) * 100;
-    }
-    starsGeo.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
-    const starsMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.05, transparent: true, opacity: 0.8 });
-    scene.add(new THREE.Points(starsGeo, starsMat));
+    const earthGroup = new THREE.Group();
+    scene.add(earthGroup);
+    objectsRef.current.earthGroup = earthGroup;
 
-    // ── Earth sphere ──
+    // Earth Sphere (High-res texture approach)
     const earthRadius = 1.0;
     const earthGeo = new THREE.SphereGeometry(earthRadius, 64, 64);
-
-    // Procedural Earth shader
-    const earthMat = new THREE.ShaderMaterial({
-      uniforms: {
-        uTime: { value: 0 },
-      },
-      vertexShader: `
-        varying vec3 vNormal;
-        varying vec3 vPosition;
-        varying vec2 vUv;
-        void main() {
-          vNormal = normalize(normalMatrix * normal);
-          vPosition = (modelViewMatrix * vec4(position, 1.0)).xyz;
-          vUv = uv;
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }
-      `,
-      fragmentShader: `
-        varying vec3 vNormal;
-        varying vec3 vPosition;
-        varying vec2 vUv;
-        uniform float uTime;
-
-        // Simple noise for continents
-        float hash(vec2 p) {
-          return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
-        }
-        float noise(vec2 p) {
-          vec2 i = floor(p);
-          vec2 f = fract(p);
-          f = f * f * (3.0 - 2.0 * f);
-          float a = hash(i);
-          float b = hash(i + vec2(1.0, 0.0));
-          float c = hash(i + vec2(0.0, 1.0));
-          float d = hash(i + vec2(1.0, 1.0));
-          return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
-        }
-        float fbm(vec2 p) {
-          float val = 0.0;
-          float amp = 0.5;
-          for (int i = 0; i < 5; i++) {
-            val += amp * noise(p);
-            p *= 2.0;
-            amp *= 0.5;
-          }
-          return val;
-        }
-
-        void main() {
-          vec3 lightDir = normalize(vec3(1.0, 0.5, 1.0));
-          float diff = max(dot(vNormal, lightDir), 0.0);
-          float ambient = 0.12;
-
-          // Generate continent-like pattern
-          vec2 uv = vUv * vec2(8.0, 4.0);
-          float land = fbm(uv + vec2(0.0, 0.5));
-          land = smoothstep(0.35, 0.5, land);
-
-          // Ocean color (deep blue with variation)
-          vec3 ocean = mix(
-            vec3(0.02, 0.08, 0.25),
-            vec3(0.05, 0.15, 0.45),
-            fbm(uv * 2.0)
-          );
-
-          // Land color (green/brown)
-          vec3 landColor = mix(
-            vec3(0.1, 0.35, 0.1),
-            vec3(0.35, 0.28, 0.12),
-            fbm(uv * 3.0 + vec2(10.0, 5.0))
-          );
-
-          // Ice caps
-          float iceCap = smoothstep(0.85, 0.95, abs(vUv.y - 0.5) * 2.0);
-          vec3 ice = vec3(0.85, 0.9, 0.95);
-
-          // Combine
-          vec3 surface = mix(ocean, landColor, land);
-          surface = mix(surface, ice, iceCap);
-
-          // Night side city lights
-          float nightSide = 1.0 - smoothstep(-0.1, 0.1, diff);
-          float cities = step(0.7, fbm(uv * 10.0)) * land;
-          vec3 cityLights = vec3(1.0, 0.8, 0.3) * cities * nightSide * 0.6;
-
-          // Final lighting
-          vec3 color = surface * (ambient + diff * 0.9) + cityLights;
-
-          // Fresnel glow (atmosphere rim)
-          float fresnel = pow(1.0 - max(dot(vNormal, normalize(-vPosition)), 0.0), 3.0);
-          color += vec3(0.3, 0.6, 1.0) * fresnel * 0.4;
-
-          gl_FragColor = vec4(color, 1.0);
-        }
-      `,
+    
+    // Fallback simple dark material if texture fails or loading
+    const earthMat = new THREE.MeshPhongMaterial({
+      color: 0x051122,
+      emissive: 0x020510,
+      specular: 0x111111,
+      shininess: 10,
     });
-    const earth = new THREE.Mesh(earthGeo, earthMat);
-    scene.add(earth);
 
-    // ── Atmosphere glow ──
-    const atmosGeo = new THREE.SphereGeometry(earthRadius * 1.03, 64, 64);
-    const atmosMat = new THREE.ShaderMaterial({
-      uniforms: {},
-      vertexShader: `
-        varying vec3 vNormal;
-        varying vec3 vPosition;
-        void main() {
-          vNormal = normalize(normalMatrix * normal);
-          vPosition = (modelViewMatrix * vec4(position, 1.0)).xyz;
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }
-      `,
-      fragmentShader: `
-        varying vec3 vNormal;
-        varying vec3 vPosition;
-        void main() {
-          float intensity = pow(0.7 - dot(vNormal, normalize(-vPosition)), 2.0);
-          gl_FragColor = vec4(0.3, 0.6, 1.0, intensity * 0.5);
-        }
-      `,
+    const textureLoader = new THREE.TextureLoader();
+    textureLoader.load('https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg', (tex) => {
+      earthMat.map = tex;
+      earthMat.color.setHex(0x55aaaa); // Tint it cyan-ish for aesthetic
+      earthMat.needsUpdate = true;
+    });
+
+    const earth = new THREE.Mesh(earthGeo, earthMat);
+    earthGroup.add(earth);
+
+    // Lighting
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+    scene.add(ambientLight);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+    dirLight.position.set(5, 3, 5);
+    scene.add(dirLight);
+
+    // Atmosphere
+    const atmosGeo = new THREE.SphereGeometry(earthRadius * 1.05, 64, 64);
+    const atmosMat = new THREE.MeshPhongMaterial({
+      color: 0x00d4ff,
       transparent: true,
+      opacity: 0.15,
       side: THREE.BackSide,
       blending: THREE.AdditiveBlending,
     });
-    scene.add(new THREE.Mesh(atmosGeo, atmosMat));
+    const atmos = new THREE.Mesh(atmosGeo, atmosMat);
+    earthGroup.add(atmos);
 
-    // ── Grid lines (latitude/longitude) ──
-    const gridMat = new THREE.LineBasicMaterial({ color: 0x00d4ff, transparent: true, opacity: 0.08 });
-    for (let i = 0; i < 12; i++) {
-      const angle = (i / 12) * Math.PI * 2;
-      const curve = new THREE.EllipseCurve(0, 0, earthRadius * 1.001, earthRadius * 1.001, 0, Math.PI * 2, false, 0);
-      const pts = curve.getPoints(64);
-      const geo3 = new THREE.BufferGeometry().setFromPoints(pts.map(p => new THREE.Vector3(p.x, 0, p.y)));
-      const line = new THREE.Line(geo3, gridMat);
-      line.rotation.y = angle;
-      scene.add(line);
-    }
-    for (let i = 1; i < 6; i++) {
-      const latAngle = (i / 6) * Math.PI - Math.PI / 2;
-      const r2 = Math.cos(latAngle) * earthRadius * 1.001;
-      const y2 = Math.sin(latAngle) * earthRadius * 1.001;
-      const curve = new THREE.EllipseCurve(0, 0, r2, r2, 0, Math.PI * 2, false, 0);
-      const pts = curve.getPoints(64);
-      const geo3 = new THREE.BufferGeometry().setFromPoints(pts.map(p => new THREE.Vector3(p.x, y2, p.y)));
-      scene.add(new THREE.Line(geo3, gridMat));
-    }
+    // Grid
+    const gridMat = new THREE.LineBasicMaterial({ color: 0x00d4ff, transparent: true, opacity: 0.1 });
+    const gridGeo = new THREE.EdgesGeometry(new THREE.SphereGeometry(earthRadius * 1.01, 16, 16));
+    const grid = new THREE.LineSegments(gridGeo, gridMat);
+    earthGroup.add(grid);
 
-    // ── Satellite orbit path ──
-    const orbitData = generateOrbitData();
-    const orbitPoints = orbitData.map(p => {
-      const globeR = earthRadius + (p.altitude / 6371) * 0.15;
-      return latLonToVec3(p.lat, p.lon, globeR);
+    // Ground Stations
+    const gsGeo = new THREE.ConeGeometry(0.015, 0.04, 3);
+    gsGeo.rotateX(Math.PI/2);
+    const gsMat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+    sim.groundStations.forEach((gs: GroundStation) => {
+      const gsMesh = new THREE.Mesh(gsGeo, gsMat);
+      const pos = latLonToVec3(gs.lat, gs.lon, earthRadius);
+      gsMesh.position.copy(pos);
+      gsMesh.lookAt(new THREE.Vector3(0,0,0)); // point inward
+      earthGroup.add(gsMesh);
     });
-    const orbitGeo = new THREE.BufferGeometry().setFromPoints(orbitPoints);
-    const orbitMat = new THREE.LineBasicMaterial({
-      color: 0x00ff88,
-      transparent: true,
-      opacity: 0.6,
-    });
-    const orbitLine = new THREE.Line(orbitGeo, orbitMat);
-    scene.add(orbitLine);
 
-    // ── Satellite marker ──
-    const satGeo = new THREE.SphereGeometry(0.02, 16, 16);
-    const satMat = new THREE.MeshBasicMaterial({ color: 0xff4444 });
-    const satellite = new THREE.Mesh(satGeo, satMat);
-    scene.add(satellite);
-
-    // Satellite glow
-    const satGlowGeo = new THREE.SphereGeometry(0.04, 16, 16);
-    const satGlowMat = new THREE.MeshBasicMaterial({
-      color: 0xff4444,
-      transparent: true,
-      opacity: 0.3,
-    });
-    const satGlow = new THREE.Mesh(satGlowGeo, satGlowMat);
-    scene.add(satGlow);
-
-    // ── Orbit trail (recent positions glow) ──
-    const trailLength = 40;
-    const trailGeo = new THREE.BufferGeometry();
-    const trailPositions = new Float32Array(trailLength * 3);
-    trailGeo.setAttribute('position', new THREE.BufferAttribute(trailPositions, 3));
-    const trailMat = new THREE.LineBasicMaterial({ color: 0xff6666, transparent: true, opacity: 0.8 });
-    const trail = new THREE.Line(trailGeo, trailMat);
-    scene.add(trail);
-
-    // ── Mouse drag rotation ──
+    // Mouse Controls
     let isDragging = false;
     let prevMouse = { x: 0, y: 0 };
-    let rotationTarget = { x: 0.3, y: 0 };
-    let currentRotation = { x: 0.3, y: 0 };
-    let autoRotateSpeed = 0.002;
+    let rotationTarget = { x: 0, y: 0 };
+    let currentRotation = { x: 0, y: 0 };
 
     const onMouseDown = (e: MouseEvent) => {
       isDragging = true;
       prevMouse = { x: e.clientX, y: e.clientY };
-      autoRotateSpeed = 0;
     };
     const onMouseMove = (e: MouseEvent) => {
       if (!isDragging) return;
@@ -335,87 +134,33 @@ export default function EarthGlobe({ onTelemetryUpdate }: EarthGlobeProps) {
       rotationTarget.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, rotationTarget.x));
       prevMouse = { x: e.clientX, y: e.clientY };
     };
-    const onMouseUp = () => {
-      isDragging = false;
-      setTimeout(() => { autoRotateSpeed = 0.002; }, 2000);
-    };
+    const onMouseUp = () => isDragging = false;
     const onWheel = (e: WheelEvent) => {
-      camera.position.z = Math.max(2, Math.min(8, camera.position.z + e.deltaY * 0.002));
+      const newZ = Math.max(1.5, Math.min(8, camera.position.z + e.deltaY * 0.002));
+      camera.position.z = newZ;
+      if (zoomSliderRef.current) {
+        zoomSliderRef.current.value = (((8.0 - newZ) / 6.5) * 100).toString();
+      }
     };
 
     renderer.domElement.addEventListener('mousedown', onMouseDown);
-    renderer.domElement.addEventListener('mousemove', onMouseMove);
-    renderer.domElement.addEventListener('mouseup', onMouseUp);
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
     renderer.domElement.addEventListener('wheel', onWheel);
-
-    // ── Animation loop ──
-    let time = 0;
-    const clock = new THREE.Clock();
 
     const animate = () => {
       frameRef.current = requestAnimationFrame(animate);
-      const delta = clock.getDelta();
-      time += delta;
 
-      // Auto-rotate
-      rotationTarget.y += autoRotateSpeed;
-
-      // Smooth rotation
-      currentRotation.x += (rotationTarget.x - currentRotation.x) * 0.05;
-      currentRotation.y += (rotationTarget.y - currentRotation.y) * 0.05;
-
-      earth.rotation.x = currentRotation.x;
-      earth.rotation.y = currentRotation.y;
-      orbitLine.rotation.x = currentRotation.x;
-      orbitLine.rotation.y = currentRotation.y;
-
-      // Update shader time
-      earthMat.uniforms.uTime.value = time;
-
-      // Animate satellite along orbit
-      const idx = Math.floor((time * 20) % orbitData.length);
-      const satData = orbitData[idx];
-      const globeR = earthRadius + (satData.altitude / 6371) * 0.15;
-      const satPos = latLonToVec3(satData.lat, satData.lon, globeR);
-
-      // Apply same rotation as Earth
-      satPos.applyEuler(new THREE.Euler(currentRotation.x, currentRotation.y, 0));
-      satellite.position.copy(satPos);
-      satGlow.position.copy(satPos);
-
-      // Pulsing glow
-      satGlow.scale.setScalar(1.0 + Math.sin(time * 4) * 0.3);
-
-      // Update trail
-      const trailPositionsArr = trail.geometry.attributes.position.array as Float32Array;
-      for (let i = 0; i < trailLength; i++) {
-        const ti = (idx - i + orbitData.length) % orbitData.length;
-        const td = orbitData[ti];
-        const tr = earthRadius + (td.altitude / 6371) * 0.15;
-        const tp = latLonToVec3(td.lat, td.lon, tr);
-        tp.applyEuler(new THREE.Euler(currentRotation.x, currentRotation.y, 0));
-        trailPositionsArr[i * 3] = tp.x;
-        trailPositionsArr[i * 3 + 1] = tp.y;
-        trailPositionsArr[i * 3 + 2] = tp.z;
-      }
-      trail.geometry.attributes.position.needsUpdate = true;
-
-      // Send telemetry updates
-      if (onTelemetryUpdate && Math.floor(time * 10) % 2 === 0) {
-        onTelemetryUpdate({
-          altitude: satData.altitude,
-          velocity: satData.velocity,
-          lat: satData.lat,
-          lon: satData.lon,
-          inclination: 51.6,
-        });
-      }
+      // Smooth rotate
+      currentRotation.x += (rotationTarget.x - currentRotation.x) * 0.1;
+      currentRotation.y += (rotationTarget.y - currentRotation.y) * 0.1;
+      earthGroup.rotation.x = currentRotation.x;
+      earthGroup.rotation.y = currentRotation.y;
 
       renderer.render(scene, camera);
     };
     animate();
 
-    // ── Handle resize ──
     const handleResize = () => {
       if (!containerRef.current) return;
       const w = containerRef.current.clientWidth;
@@ -429,23 +174,156 @@ export default function EarthGlobe({ onTelemetryUpdate }: EarthGlobeProps) {
     return () => {
       window.removeEventListener('resize', handleResize);
       renderer.domElement.removeEventListener('mousedown', onMouseDown);
-      renderer.domElement.removeEventListener('mousemove', onMouseMove);
-      renderer.domElement.removeEventListener('mouseup', onMouseUp);
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
       renderer.domElement.removeEventListener('wheel', onWheel);
       cancelAnimationFrame(frameRef.current);
       renderer.dispose();
     };
-  }, [onTelemetryUpdate]);
+  }, [sim.groundStations]);
 
   useEffect(() => {
     const cleanup = initScene();
     return cleanup;
   }, [initScene]);
 
+  // Sync dynamic simulation objects (Satellites, Debris, Threats)
+  useEffect(() => {
+    if (!objectsRef.current.earthGroup) return;
+    const group = objectsRef.current.earthGroup;
+
+    // Update Satellites
+    sim.satellites.forEach((sat: Satellite) => {
+      let mesh = objectsRef.current.satellites[sat.id];
+      if (!mesh) {
+        // Cyan diamond
+        const geo = new THREE.OctahedronGeometry(0.02, 0);
+        const mat = new THREE.MeshBasicMaterial({ color: 0x00d4ff });
+        mesh = new THREE.Mesh(geo, mat);
+        group.add(mesh);
+        objectsRef.current.satellites[sat.id] = mesh;
+      }
+      const r = 1.0 + (sat.pos.alt / 6371);
+      mesh.position.copy(latLonToVec3(sat.pos.lat, sat.pos.lon, r));
+      
+      // Highlight selected
+      if (sim.selectedSatId === sat.id) {
+        mesh.scale.setScalar(1.5);
+        (mesh.material as THREE.MeshBasicMaterial).color.setHex(0xffffff);
+      } else {
+        mesh.scale.setScalar(1);
+        (mesh.material as THREE.MeshBasicMaterial).color.setHex(0x00d4ff);
+      }
+    });
+
+    // Update Debris (Points)
+    if (!objectsRef.current.debris) {
+      const geo = new THREE.BufferGeometry();
+      const posArray = new Float32Array(sim.debris.length * 3);
+      geo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+      const mat = new THREE.PointsMaterial({ color: 0x4466ff, size: 0.015 });
+      const points = new THREE.Points(geo, mat);
+      group.add(points);
+      objectsRef.current.debris = points;
+    }
+    const debPositions = objectsRef.current.debris.geometry.attributes.position.array as Float32Array;
+    sim.debris.forEach((deb: Debris, i: number) => {
+      const r = 1.0 + (deb.pos.alt / 6371);
+      const v = latLonToVec3(deb.pos.lat, deb.pos.lon, r);
+      debPositions[i*3] = v.x;
+      debPositions[i*3+1] = v.y;
+      debPositions[i*3+2] = v.z;
+    });
+    objectsRef.current.debris.geometry.attributes.position.needsUpdate = true;
+
+    // Update Threats
+    // First, clear missing threats
+    const currentThreatIds = new Set(sim.threats.map((t: Threat) => t.id));
+    Object.keys(objectsRef.current.threats).forEach(id => {
+      if (!currentThreatIds.has(id)) {
+        group.remove(objectsRef.current.threats[id]);
+        delete objectsRef.current.threats[id];
+      }
+    });
+    
+    // Add/Update existing threats
+    sim.threats.forEach((thr: Threat) => {
+      let mesh = objectsRef.current.threats[thr.id];
+      if (!mesh) {
+        // Red square (Box)
+        const geo = new THREE.BoxGeometry(0.02, 0.02, 0.02);
+        const mat = new THREE.MeshBasicMaterial({ color: 0xff4444 });
+        mesh = new THREE.Mesh(geo, mat);
+        group.add(mesh);
+        objectsRef.current.threats[thr.id] = mesh;
+      }
+      const r = 1.0 + (thr.pos.alt / 6371);
+      mesh.position.copy(latLonToVec3(thr.pos.lat, thr.pos.lon, r));
+      // Pulse animation based on time
+      const scale = 1.0 + Math.sin(Date.now() * 0.005) * 0.3;
+      mesh.scale.setScalar(scale);
+    });
+
+  }, [sim.time, sim.satellites, sim.debris, sim.threats, sim.selectedSatId]);
+
   return (
-    <div
-      ref={containerRef}
-      style={{ width: '100%', height: '100%', cursor: 'grab', borderRadius: '8px', overflow: 'hidden' }}
-    />
+    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+      <div
+        ref={containerRef}
+        style={{ width: '100%', height: '100%', cursor: 'grab' }}
+      />
+      {/* Zoom Slider Overlay */}
+      <div style={{
+        position: 'absolute',
+        right: '15px',
+        top: '50%',
+        transform: 'translateY(-50%)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: '8px',
+        background: 'rgba(0, 0, 0, 0.5)',
+        padding: '10px 5px',
+        borderRadius: '20px',
+        border: '1px solid rgba(0, 212, 255, 0.2)'
+      }}>
+        <span style={{ color: '#00d4ff', fontSize: '1.2rem', fontWeight: 'bold', cursor: 'pointer', userSelect: 'none' }} onClick={() => {
+          if (cameraRef.current) {
+            const newZ = Math.max(1.5, cameraRef.current.position.z - 0.5);
+            cameraRef.current.position.z = newZ;
+            if (zoomSliderRef.current) zoomSliderRef.current.value = (((8.0 - newZ) / 6.5) * 100).toString();
+          }
+        }}>+</span>
+        <input 
+          ref={zoomSliderRef}
+          type="range" 
+          min="0" 
+          max="100" 
+          step="1" 
+          defaultValue={((8.0 - 3.5) / 6.5) * 100}
+          style={{ 
+            writingMode: 'vertical-lr', 
+            direction: 'rtl',
+            WebkitAppearance: 'slider-vertical',
+            height: '100px', 
+            cursor: 'pointer',
+            accentColor: '#00d4ff'
+          } as React.CSSProperties} 
+          onChange={(e) => {
+            if (cameraRef.current) {
+              const val = parseFloat(e.target.value);
+              cameraRef.current.position.z = 8.0 - (val / 100) * 6.5;
+            }
+          }}
+        />
+        <span style={{ color: '#00d4ff', fontSize: '1.2rem', fontWeight: 'bold', cursor: 'pointer', userSelect: 'none' }} onClick={() => {
+          if (cameraRef.current) {
+            const newZ = Math.min(8, cameraRef.current.position.z + 0.5);
+            cameraRef.current.position.z = newZ;
+            if (zoomSliderRef.current) zoomSliderRef.current.value = (((8.0 - newZ) / 6.5) * 100).toString();
+          }
+        }}>-</span>
+      </div>
+    </div>
   );
 }

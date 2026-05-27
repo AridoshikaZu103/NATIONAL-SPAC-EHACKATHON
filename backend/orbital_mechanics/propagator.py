@@ -75,6 +75,24 @@ class PropagationEngine:
         
         return trajectory
 
+    @staticmethod
+    def eci_to_geodetic(position: np.ndarray, time_sec: float) -> Tuple[float, float, float]:
+        """Convert ECI to Geodetic (Lat, Lon, Alt) approximating Earth rotation"""
+        x, y, z = position
+        r = np.linalg.norm(position)
+        
+        # Earth rotation (2pi per 86400 seconds)
+        theta = time_sec * (2 * np.pi / 86400.0)
+        
+        lat = np.arcsin(z / r) * (180.0 / np.pi)
+        lon = (np.arctan2(y, x) - theta) * (180.0 / np.pi)
+        
+        # Normalize lon to -180 to 180
+        lon = (lon + 180) % 360 - 180
+        
+        alt = r - PropagationEngine.EARTH_RADIUS
+        return lat, lon, alt
+
 
 class SpatialIndexing:
     """KD-Tree for conjunction detection"""
