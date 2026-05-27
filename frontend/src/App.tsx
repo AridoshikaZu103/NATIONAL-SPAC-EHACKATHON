@@ -1,5 +1,10 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import axios from 'axios';
 import EarthGlobe from './components/EarthGlobe';
+import GroundTrackMap from './components/GroundTrackMap';
+import BullseyePlot from './components/BullseyePlot';
+import ResourceDash from './components/ResourceDash';
+import ManeuverGantt from './components/ManeuverGantt';
 import './App.css';
 
 interface TelemetryData {
@@ -10,7 +15,7 @@ interface TelemetryData {
   inclination: number;
 }
 
-function App() {
+export default function App() {
   const [telemetry, setTelemetry] = useState<TelemetryData>({
     altitude: 550,
     velocity: 7.58,
@@ -19,9 +24,45 @@ function App() {
     inclination: 51.6,
   });
 
-  const [isConnected] = useState(true);
+  const [isConnected, setIsConnected] = useState(true);
   const [isPaused, setIsPaused] = useState(false);
   const [colaWarning, setColaWarning] = useState(false);
+
+  // Backend state for visualization modules
+  const [simTime, setSimTime] = useState(0);
+  const [satellites, setSatellites] = useState<any[]>([]);
+  const [threats, setThreats] = useState<any[]>([]);
+  const [timeline, setTimeline] = useState<any[]>([]);
+
+  // Fetch Snapshot API
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval>;
+    
+    const fetchSnapshot = async () => {
+      if (isPaused) return;
+      try {
+        const res = await axios.get('/api/visualization/snapshot');
+        const data = res.data;
+        
+        setIsConnected(true);
+        setSimTime(data.time);
+        setSatellites(data.satellites || []);
+        
+        // The API returns threats with timeToCollision
+        setThreats(data.threats || []);
+        setTimeline(data.timeline || []);
+
+      } catch (err) {
+        setIsConnected(false);
+        console.error("API Error:", err);
+      }
+    };
+
+    // Poll every 1 second
+    interval = setInterval(fetchSnapshot, 1000);
+    return () => clearInterval(interval);
+  }, [isPaused]);
+
 
   const handleTelemetryUpdate = useCallback((data: TelemetryData) => {
     setTelemetry(data);
@@ -42,7 +83,7 @@ function App() {
               🛰️ Orbital Insight SSA
             </h1>
             <p className="subtitle">
-              Space Situational Awareness • Walker Delta Constellation
+              Space Situational Awareness • Advanced Visualization Modules
             </p>
           </div>
           
@@ -68,7 +109,7 @@ function App() {
           </div>
         )}
 
-        {/* Main Grid */}
+        {/* Main Grid: 3D Globe + Telemetry */}
         <div className="main-layout">
 
           {/* 3D Globe Panel */}
@@ -128,25 +169,35 @@ function App() {
               </div>
             </div>
 
-            {/* Orbital Parameters */}
-            <div className="glass-panel">
-              <h2 className="panel-title">🔭 Orbital Parameters</h2>
-              <div className="info-list text-small">
-                <InfoRow label="Semi-major axis" value="6,921 km" />
-                <InfoRow label="Eccentricity" value="0.0000" />
-                <InfoRow label="Perigee" value="550 km" />
-                <InfoRow label="Apogee" value="550 km" />
-                <InfoRow label="RAAN" value="0.0°" />
-                <InfoRow label="Arg. Perigee" value="0.0°" />
-              </div>
+            {/* Conjunction Bullseye Plot */}
+            <div className="glass-panel" style={{ flexGrow: 1, padding: 0, overflow: 'hidden' }}>
+              <BullseyePlot threats={threats} />
             </div>
 
           </div>
         </div>
 
+        {/* Secondary Modules Layout */}
+        <div className="modules-layout">
+          {/* Ground Track Map */}
+          <div className="glass-panel" style={{ height: '400px', padding: 0 }}>
+             <GroundTrackMap satellites={satellites} time={simTime} />
+          </div>
+
+          {/* Maneuver Gantt Scheduler */}
+          <div className="glass-panel" style={{ height: '400px', padding: 0 }}>
+             <ManeuverGantt timeline={timeline} currentTime={simTime} />
+          </div>
+
+          {/* Telemetry & Resource Heatmaps */}
+          <div className="glass-panel" style={{ gridColumn: '1 / -1', padding: 0, border: 'none', background: 'transparent' }}>
+             <ResourceDash satellites={satellites} time={simTime} />
+          </div>
+        </div>
+
         {/* Footer bar */}
-        <div className="footer-bar">
-          <span>Orbital Insight SSA Dashboard v0.2.0 • 3D Constellation Tracking</span>
+        <div className="footer-bar" style={{ marginTop: '40px' }}>
+          <span>Orbital Insight SSA Dashboard v0.3.0 • 3D Constellation Tracking & Advanced Visualization Modules</span>
           <span>Backend: FastAPI on :8000 | Frontend: Vite on :5173</span>
         </div>
       </div>
@@ -172,5 +223,3 @@ function InfoRow({ label, value, valueColor = '#ccc' }: { label: string; value: 
     </div>
   );
 }
-
-export default App;

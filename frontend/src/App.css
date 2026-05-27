@@ -291,3 +291,18 @@ body {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
 }
+
+/* Secondary Modules Grid Layout */
+.modules-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-top: 20px;
+}
+
+@media (max-width: 1200px) {
+  .modules-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
