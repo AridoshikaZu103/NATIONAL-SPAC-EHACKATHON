@@ -136,17 +136,13 @@ export default function EarthGlobe({ sim }: EarthGlobeProps) {
     };
     const onMouseUp = () => isDragging = false;
     const onWheel = (e: WheelEvent) => {
-      const newZ = Math.max(1.5, Math.min(8, camera.position.z + e.deltaY * 0.002));
-      camera.position.z = newZ;
-      if (zoomSliderRef.current) {
-        zoomSliderRef.current.value = (((8.0 - newZ) / 6.5) * 100).toString();
-      }
+      // Disabled wheel zoom to allow page scrolling
     };
 
     renderer.domElement.addEventListener('mousedown', onMouseDown);
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', onMouseUp);
-    renderer.domElement.addEventListener('wheel', onWheel);
+    // renderer.domElement.addEventListener('wheel', onWheel);
 
     const animate = () => {
       frameRef.current = requestAnimationFrame(animate);
@@ -176,7 +172,7 @@ export default function EarthGlobe({ sim }: EarthGlobeProps) {
       renderer.domElement.removeEventListener('mousedown', onMouseDown);
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
-      renderer.domElement.removeEventListener('wheel', onWheel);
+      // renderer.domElement.removeEventListener('wheel', onWheel);
       cancelAnimationFrame(frameRef.current);
       renderer.dispose();
     };

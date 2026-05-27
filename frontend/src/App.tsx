@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import EarthGlobe from './components/EarthGlobe';
 import { ConjunctionBullseye, ManeuverTimeline, FleetFuelStatus, ActiveCDMs } from './components/DashboardPanels';
+import Map2D from './components/Map2D';
 import { useSimulation } from './lib/SimulationEngine';
 import './App.css';
 
@@ -188,6 +189,24 @@ function App() {
           <button onClick={sim.injectThreats} style={{...btnStyle, border: '1px solid #ff4444', color: '#ff4444', background: 'rgba(255,68,68,0.1)'}}>
             ⚠ THREATS
           </button>
+        </div>
+      </div>
+
+      {/* Bottom 2D Map */}
+      <div style={{
+        marginTop: '12px',
+        border: '1px solid rgba(0, 212, 255, 0.15)',
+        borderRadius: '4px',
+        background: '#0a0f18',
+        display: 'flex',
+        flexDirection: 'column',
+        height: '500px'
+      }}>
+        <div style={{ padding: '8px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(0, 212, 255, 0.1)' }}>
+          <span style={{ fontSize: '0.8rem', letterSpacing: '1px' }}>GLOBAL TRACKING (2D PROJECTION)</span>
+        </div>
+        <div style={{ flex: 1, position: 'relative' }}>
+          <Map2D sim={sim} />
         </div>
       </div>
 
