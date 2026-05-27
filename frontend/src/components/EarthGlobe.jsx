@@ -43,19 +43,19 @@ export default function EarthGlobe({ isPaused, satellites = [], debris = [], thr
     worldRotationPoint.add(dataGroup);
     dataGroupRef.current = dataGroup;
 
-    // Lighting
-    scene.add(new THREE.AmbientLight(0x222222));
+    // Lighting - modern Three.js requires 0 decay to simulate legacy PointLights over large distances, or high intensity.
+    scene.add(new THREE.AmbientLight(0x222222, 2)); // Boosted ambient
 
-    const sun = new THREE.PointLight(0xffeecc, 2, 5000);
+    const sun = new THREE.DirectionalLight(0xffeecc, 3); // Sun is better as DirectionalLight
     sun.position.set(-400, 0, 100);
     scene.add(sun);
 
     // Fill lights
-    const light2 = new THREE.PointLight(0xffffff, 0.6, 4000);
+    const light2 = new THREE.DirectionalLight(0xffffff, 0.8);
     light2.position.set(-400, 0, 250);
     scene.add(light2);
     
-    const light3 = new THREE.PointLight(0xffffff, 0.6, 4000);
+    const light3 = new THREE.DirectionalLight(0xffffff, 0.8);
     light3.position.set(-400, 0, -150);
     scene.add(light3);
 
@@ -112,14 +112,29 @@ export default function EarthGlobe({ isPaused, satellites = [], debris = [], thr
       scene.background = textureCube;
     });
 
+    // UTC Day/Night cycle logic from main.js
+    const getEarthRotation = () => {
+      const d = new Date();
+      const h = d.getUTCHours();
+      const m = d.getUTCMinutes();
+      let minutes = h * 60 + m;
+      let degrees = minutes / 3.9907 + 90; // 90 degree offset
+      return degrees;
+    };
+
     // Animation Loop
     let animationId;
     const animate = () => {
       animationId = requestAnimationFrame(animate);
       if (!isPaused) {
-        // Slow continuous rotation
-        worldRotationPoint.rotation.y += 0.0005;
-        sphereCloud.rotation.y += 0.0007; // Clouds move slightly faster
+        // Update Earth rotation to match UTC time so the terminator (day/night) is accurate
+        worldRotationPoint.rotation.y = getEarthRotation() * (Math.PI / 180);
+        
+        // Clouds move slightly independently
+        sphereCloud.rotation.y += 0.00025;
+        
+        // Rotate the base to slowly orbit the camera around the earth
+        // But since we use OrbitControls, this might fight it. We will leave baseRotationPoint stationary to let user control camera.
       }
       controls.update();
       renderer.render(scene, camera);
