@@ -5,12 +5,16 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 import numpy as np
 from typing import List, Dict, Any, Optional
+from datetime import datetime, timedelta, timezone
 
 from orbital_mechanics.propagator import PropagationEngine, OrbitalState, SpatialIndexing
 from state import global_state
 from database import Database
 
 router = APIRouter(prefix="/api", tags=["orbital"])
+
+# Base epoch for ISO timestamp generation
+BASE_EPOCH = datetime(2026, 3, 12, 8, 0, 0, tzinfo=timezone.utc)
 
 class TelemetryRequest(BaseModel):
     timestamp: str
@@ -23,12 +27,16 @@ class ManeuverRequest(BaseModel):
 class StepRequest(BaseModel):
     step_seconds: int
 
+def to_iso(sim_seconds):
+    """Convert sim seconds to ISO 8601 timestamp"""
+    dt = BASE_EPOCH + timedelta(seconds=sim_seconds)
+    return dt.strftime("%Y-%m-%dT%H:%M:%S.000Z")
+
 @router.get("/visualization/snapshot")
 async def get_snapshot():
     """Return highly compressed JSON payload for frontend"""
     satellites = []
     for sat in global_state.satellites:
-        # Convert ECI to Geodetic
         lat, lon, alt = PropagationEngine.eci_to_geodetic(sat["position"], global_state.time)
         satellites.append({
             "id": sat["id"],
@@ -36,16 +44,15 @@ async def get_snapshot():
             "lat": lat,
             "lon": lon,
             "alt": alt,
-            "fuel_kg": sat["fuel_kg"],
+            "fuel_kg": round(sat["fuel_kg"], 2),
             "status": sat["status"]
         })
-        
+
     debris_cloud = []
     for deb in global_state.debris:
         lat, lon, alt = PropagationEngine.eci_to_geodetic(deb["position"], global_state.time)
         debris_cloud.append([deb["id"], lat, lon, alt])
-        
-    # Also pass down threats and CDMs for the dashboard
+
     threats_out = []
     for thr in global_state.threats:
         lat, lon, alt = PropagationEngine.eci_to_geodetic(thr["position"], global_state.time)
@@ -55,31 +62,38 @@ async def get_snapshot():
             "targetSatId": thr["targetSatId"],
             "timeToCollision": thr["timeToCollision"]
         })
-        
-    # Generate deltaVData based on current time and total fuel consumed
+
+    # Compute deltaV data from maneuver history
+    total_fuel_consumed = round(sum(50.0 - s["fuel_kg"] for s in global_state.satellites), 2)
+    maneuver_count = len([e for e in global_state.timeline if e["type"] == "EVASION"])
+
+    # Build cumulative daily data - always at least 3 points
+    days_elapsed = max(1, int(global_state.time // 86400) + 1)
     deltaVData = []
-    days = int(global_state.time // 86400) + 1
-    total_fuel_consumed = sum(50.0 - s["fuel_kg"] for s in global_state.satellites)
-    total_cdms = len(global_state.cdms)
-    
-    # Fill at least 5 days for the UI, growing over time
-    for d in range(1, max(6, days + 1)):
-        factor = min(1.0, d / max(1, days))
+    for d in range(1, min(days_elapsed + 1, 31)):
+        frac = d / days_elapsed
         deltaVData.append({
-            "day": f"Day {d}",
-            "fuelConsumed": round(total_fuel_consumed * factor, 2),
-            "collisionsAvoided": int((total_cdms / 2) * factor)
+            "day": "Day " + str(d),
+            "fuelConsumed": round(total_fuel_consumed * frac, 2),
+            "collisionsAvoided": max(0, int(maneuver_count * frac))
         })
-        
+    if len(deltaVData) < 3:
+        deltaVData = [
+            {"day": "Day 1", "fuelConsumed": 0, "collisionsAvoided": 0},
+            {"day": "Day 2", "fuelConsumed": round(total_fuel_consumed * 0.5, 2), "collisionsAvoided": max(0, maneuver_count // 2)},
+            {"day": "Day 3", "fuelConsumed": total_fuel_consumed, "collisionsAvoided": maneuver_count},
+        ]
+
     return {
-        "timestamp": f"T+{global_state.time}s",
+        "timestamp": to_iso(global_state.time),
         "time": global_state.time,
         "satellites": satellites,
         "debris_cloud": debris_cloud,
         "threats": threats_out,
         "cdms": global_state.cdms,
         "timeline": global_state.timeline,
-        "deltaVData": deltaVData
+        "deltaVData": deltaVData,
+        "maneuver_count": maneuver_count
     }
 
 def calc_threat_pos(target, time_to_collision):
@@ -107,7 +121,7 @@ async def ingest_telemetry(req: TelemetryRequest):
             else:
                 obj["position"] = np.array([7000.0, 0.0, 0.0])
             global_state.threats.append(obj)
-            
+
     return {
         "status": "ACK",
         "processed_count": len(req.objects),
@@ -117,13 +131,11 @@ async def ingest_telemetry(req: TelemetryRequest):
 @router.post("/maneuver/schedule")
 async def schedule_maneuver(req: ManeuverRequest):
     """Schedule a burn"""
-    # Simple validation for the demo
     sat = next((s for s in global_state.satellites if s["id"] == req.satelliteId), None)
     if not sat:
         raise HTTPException(status_code=404, detail="Satellite not found")
-        
+
     for burn in req.maneuver_sequence:
-        # Subtract fuel according to hackathon rules (approx 2.5kg per evasion)
         sat["fuel_kg"] = max(0, sat["fuel_kg"] - 2.5)
         ev_type = "EVASION" if "EVASION" in burn["burn_id"] else "RECOVERY"
         global_state.timeline.append({
@@ -134,7 +146,7 @@ async def schedule_maneuver(req: ManeuverRequest):
             "type": ev_type
         })
         await Database.log_maneuver(burn["burn_id"], sat["id"], global_state.time, global_state.time + 3600, ev_type)
-        
+
     return {
         "status": "SCHEDULED",
         "validation": {
@@ -147,9 +159,11 @@ async def schedule_maneuver(req: ManeuverRequest):
 @router.post("/simulate/step")
 async def simulate_step(req: StepRequest):
     """Advance simulation physics"""
-    engine = PropagationEngine(dt=10.0) # 10s integration steps
+    engine = PropagationEngine(dt=10.0)
     steps = req.step_seconds // 10
-    
+    maneuvers_executed = 0
+    collisions_detected = 0
+
     # 1. Propagate Satellites
     for sat in global_state.satellites:
         state = np.concatenate([sat["position"], sat["velocity"]])
@@ -157,11 +171,9 @@ async def simulate_step(req: StepRequest):
             state = engine.rk4_step(state, 10.0)
         sat["position"] = state[:3]
         sat["velocity"] = state[3:]
-        
-        # Log to neon DB
         lat, lon, alt = PropagationEngine.eci_to_geodetic(sat["position"], global_state.time)
         await Database.log_telemetry(sat["id"], lat, lon, alt, sat["fuel_kg"])
-        
+
     # 2. Propagate Debris
     for deb in global_state.debris:
         state = np.concatenate([deb["position"], deb["velocity"]])
@@ -169,73 +181,73 @@ async def simulate_step(req: StepRequest):
             state = engine.rk4_step(state, 10.0)
         deb["position"] = state[:3]
         deb["velocity"] = state[3:]
-        
-    # 3. Propagate Threats & Detect Conjunctions
-    new_cdms = []
+
+    # 3. Propagate Threats and Detect Conjunctions
     to_remove = []
-    
+
     for thr in global_state.threats:
         thr["timeToCollision"] -= req.step_seconds
-        
+
         target = next((s for s in global_state.satellites if s["id"] == thr["targetSatId"]), None)
         if target:
             thr["position"] = calc_threat_pos(target, thr["timeToCollision"])
-            
+
             if thr["timeToCollision"] < 86400 * 2:
                 is_crit = thr["timeToCollision"] < 18000
                 risk = "RED" if is_crit else "YELLOW"
-                
-                # Deduplicate CDMs
-                if not any(c["id"] == f"cdm-{thr['id']}" for c in global_state.cdms):
+
+                if not any(c["id"] == "cdm-" + thr["id"] for c in global_state.cdms):
                     cdm = {
-                        "id": f"cdm-{thr['id']}",
+                        "id": "cdm-" + thr["id"],
                         "risk": risk,
                         "satName": target["name"],
-                        "debrisId": f"DEB-{thr['id'][:4]}",
-                        "tca": f"T+{global_state.time + thr['timeToCollision']}s",
+                        "debrisId": "DEB-" + thr["id"][:4],
+                        "tca": to_iso(global_state.time + thr["timeToCollision"]),
                         "missDist": max(0.05, (thr["timeToCollision"] / 3600) * 2),
                         "relVel": 14.5
                     }
                     global_state.cdms.append(cdm)
-                    
-                    # Schedule a visible EVASION window on the timeline
-                    # so the panel shows something immediately
+
                     tca_time = global_state.time + thr["timeToCollision"]
-                    ev_start = tca_time - 3600  # Evasion window 1h before TCA
+                    ev_start = tca_time - 3600
                     ev_end = tca_time
                     global_state.timeline.append({
-                        "id": f"burn-plan-{thr['id']}",
+                        "id": "burn-plan-" + thr["id"],
                         "satId": target["id"],
                         "timeStart": max(global_state.time, ev_start),
                         "timeEnd": ev_end,
                         "type": "EVASION"
                     })
-                    # Schedule a RECOVERY burn after evasion
                     global_state.timeline.append({
-                        "id": f"burn-rec-{thr['id']}",
+                        "id": "burn-rec-" + thr["id"],
                         "satId": target["id"],
                         "timeStart": ev_end,
                         "timeEnd": ev_end + 3600,
                         "type": "RECOVERY"
                     })
-                    await Database.log_maneuver(f"burn-plan-{thr['id']}", target["id"], max(global_state.time, ev_start), ev_end, "EVASION")
-                    await Database.log_maneuver(f"burn-rec-{thr['id']}", target["id"], ev_end, ev_end + 3600, "RECOVERY")
-                
-                # Autonomously trigger maneuver if critical
+                    await Database.log_maneuver("burn-plan-" + thr["id"], target["id"], max(global_state.time, ev_start), ev_end, "EVASION")
+                    await Database.log_maneuver("burn-rec-" + thr["id"], target["id"], ev_end, ev_end + 3600, "RECOVERY")
+
                 if is_crit:
                     target["fuel_kg"] = max(0, target["fuel_kg"] - 2.5)
+                    maneuvers_executed += 1
                     to_remove.append(thr)
-                    
-    # Clean up resolved threats
+
+    # Check expired threats
+    for thr in global_state.threats:
+        if thr["timeToCollision"] <= 0 and thr not in to_remove:
+            collisions_detected += 1
+            to_remove.append(thr)
+
     for r in to_remove:
         if r in global_state.threats:
             global_state.threats.remove(r)
-            
+
     global_state.time += req.step_seconds
-    
+
     return {
         "status": "STEP_COMPLETE",
-        "new_timestamp": f"T+{global_state.time}s",
-        "collisions_detected": 0,
-        "maneuvers_executed": len(to_remove)
+        "new_timestamp": to_iso(global_state.time),
+        "collisions_detected": collisions_detected,
+        "maneuvers_executed": maneuvers_executed
     }
