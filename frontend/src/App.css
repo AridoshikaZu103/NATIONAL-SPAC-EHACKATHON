@@ -330,6 +330,454 @@ body {
   }
 }
 
+/* Auto Active Button */
+.control-btn.auto-active {
+  border-color: var(--neon-green);
+  color: var(--neon-green);
+  box-shadow: 0 0 12px rgba(0, 255, 136, 0.3);
+}
+
+.control-btn.threat-btn {
+  border-color: var(--neon-red);
+}
+.control-btn.threat-btn:hover {
+  background: rgba(255, 51, 102, 0.2);
+  box-shadow: 0 0 20px rgba(255, 51, 102, 0.4);
+}
+
+/* Speed Controls Bar */
+.speed-controls {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 10px 16px;
+  background: rgba(15, 15, 30, 0.5);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+}
+
+.speed-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #888;
+}
+
+.speed-group select {
+  background: rgba(0, 0, 0, 0.4);
+  color: var(--neon-blue);
+  border: 1px solid var(--glass-border);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 0.75rem;
+  font-family: 'Outfit', sans-serif;
+  cursor: pointer;
+}
+
+.speed-group input[type="range"] {
+  width: 80px;
+  accent-color: var(--neon-blue);
+}
+
+.sim-clock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.clock-label {
+  font-size: 0.6rem;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.clock-value {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--neon-blue);
+  font-family: 'Courier New', monospace;
+}
+
+/* Sidebar Bullseye */
+.sidebar-bullseye {
+  flex-grow: 1;
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+/* Module panels */
+.module-panel {
+  height: 400px;
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+.module-wide {
+  grid-column: 1 / -1;
+  padding: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.module-wide:hover {
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+/* ── Ground Track Map ── */
+.ground-track-container {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  background: #060a12;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.ground-track-title {
+  position: absolute;
+  top: 12px;
+  left: 14px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ground-track-title-text {
+  color: var(--neon-blue);
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 2px;
+}
+
+.ground-track-time {
+  color: #666;
+  font-size: 0.7rem;
+  font-family: monospace;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.ground-track-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+/* ── Bullseye Plot ── */
+.bullseye-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+.bullseye-title {
+  color: #ffaa00;
+  margin: 0 0 8px;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.bullseye-plot {
+  flex-grow: 1;
+  position: relative;
+}
+
+.bullseye-legend {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  font-size: 0.6rem;
+  color: #888;
+  margin-top: 6px;
+}
+
+/* ── Resource Dash ── */
+.resource-dash-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  gap: 20px;
+  min-height: 280px;
+}
+
+.resource-panel {
+  flex: 1;
+  background: rgba(15, 15, 30, 0.6);
+  border-radius: 16px;
+  border: 1px solid var(--glass-border);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+.resource-title {
+  color: var(--neon-blue);
+  margin: 0 0 12px;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.fuel-bars {
+  flex-grow: 1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-around;
+  gap: 8px;
+  padding-bottom: 4px;
+}
+
+.fuel-bar-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+}
+
+.fuel-bar-track {
+  width: 100%;
+  max-width: 28px;
+  height: 140px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 4px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+}
+
+.fuel-bar-fill {
+  width: 100%;
+  border-radius: 4px 4px 0 0;
+  transition: height 0.5s ease;
+}
+
+.fuel-bar-label {
+  font-size: 0.7rem;
+  color: #888;
+  font-family: monospace;
+}
+
+.fuel-bar-value {
+  font-size: 0.65rem;
+  font-family: monospace;
+  font-weight: 600;
+}
+
+.deltav-chart {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.deltav-legend {
+  display: flex;
+  gap: 16px;
+  font-size: 0.7rem;
+  color: #888;
+  margin-top: 8px;
+  justify-content: center;
+}
+
+.legend-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 4px;
+}
+
+/* ── Maneuver Gantt ── */
+.gantt-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+.gantt-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.gantt-title {
+  color: #ffaa00;
+  margin: 0;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.gantt-time-badge {
+  color: #666;
+  font-size: 0.7rem;
+  font-family: monospace;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 3px 10px;
+  border-radius: 4px;
+}
+
+.gantt-body {
+  display: flex;
+  flex-grow: 1;
+  position: relative;
+}
+
+.gantt-y-axis {
+  width: 60px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  padding-right: 8px;
+}
+
+.gantt-y-label {
+  font-size: 0.75rem;
+  color: #ccc;
+  font-family: monospace;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.gantt-sat-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.gantt-grid {
+  flex-grow: 1;
+  position: relative;
+  background: rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+  border-radius: 0 8px 8px 0;
+}
+
+.gantt-time-guide {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-left: 1px dashed rgba(255, 255, 255, 0.08);
+}
+
+.gantt-time-label {
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  font-size: 9px;
+  color: #555;
+  font-family: monospace;
+}
+
+.gantt-now-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-left: 2px solid var(--neon-green);
+  z-index: 10;
+  box-shadow: 0 0 6px var(--neon-green);
+}
+
+.gantt-rows {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+.gantt-row {
+  height: 28px;
+  position: relative;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.gantt-event {
+  position: absolute;
+  height: 18px;
+  top: 5px;
+  border-radius: 3px;
+  font-size: 8px;
+  color: #000;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  opacity: 0.85;
+}
+
+.gantt-cooldown {
+  position: absolute;
+  height: 18px;
+  top: 5px;
+  background: repeating-linear-gradient(45deg, #333, #333 2px, #111 2px, #111 4px);
+  border: 1px solid #444;
+  opacity: 0.5;
+  border-radius: 0 3px 3px 0;
+}
+
+.gantt-empty {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #444;
+  font-size: 0.7rem;
+  text-align: center;
+  letter-spacing: 1px;
+  font-family: monospace;
+}
+
+.gantt-legend {
+  display: flex;
+  gap: 16px;
+  margin-top: 10px;
+  font-size: 0.7rem;
+  color: #888;
+  justify-content: center;
+}
+
+.gantt-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.gantt-legend-box {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+}
+
+.gantt-cooldown-box {
+  background: repeating-linear-gradient(45deg, #333, #333 2px, #111 2px, #111 4px);
+  border: 1px solid #444;
+}
+
 /* End of App.css */
 
 
