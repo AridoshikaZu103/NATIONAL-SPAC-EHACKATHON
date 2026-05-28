@@ -151,8 +151,31 @@ export function ToastContainer({ toasts, onDismiss }) {
 }
 
 export function createToast(type, title, message) {
-  const icons = { info: '\u2139\uFE0F', success: '\u2705', warning: '\u26A0\uFE0F', danger: '\uD83D\uDEA8' };
-  return { id: ++toastId, type, title, message, icon: icons[type] || '\u2139\uFE0F', time: Date.now() };
+  const icons = { info: 'i', success: '\u2713', warning: '!', danger: '\u2716' };
+  return { id: ++toastId, type, title, message, icon: icons[type] || 'i', time: Date.now() };
+}
+
+// --- Threat Alert (center screen) ---
+export function ThreatAlert({ threat, onDismiss }) {
+  if (!threat) return null;
+
+  return (
+    <div className="threat-alert-overlay" onClick={onDismiss}>
+      <div className="threat-alert-box" onClick={(e) => e.stopPropagation()}>
+        <div className="threat-alert-pulse" />
+        <div className="threat-alert-icon">!</div>
+        <h2 className="threat-alert-title">COLLISION WARNING</h2>
+        <p className="threat-alert-target">Target: <span>{threat.targetSatId}</span></p>
+        <p className="threat-alert-id">Debris: {threat.id}</p>
+        <p className="threat-alert-tca">TCA: <span>{Math.round(threat.timeToCollision)}s</span></p>
+        <div className="threat-alert-bar">
+          <div className="threat-alert-bar-fill" />
+        </div>
+        <p className="threat-alert-msg">COLA engine will auto-fire when TCA drops below 5 hours</p>
+        <button className="help-btn primary" onClick={onDismiss}>ACKNOWLEDGE</button>
+      </div>
+    </div>
+  );
 }
 
 // ─── Report Modal ───
