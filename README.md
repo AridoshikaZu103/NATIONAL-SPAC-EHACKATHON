@@ -203,30 +203,8 @@ NATIONAL_SPACE_HACKATHON/
 |-- README.md
 ```
 
----
 
-## Deployment
 
-### Vercel (Frontend)
-```json
-// vercel.json
-{
-  "buildCommand": "cd frontend && npm install && npm run build",
-  "outputDirectory": "frontend/dist",
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": "https://your-backend.onrender.com/api/$1" }
-  ]
-}
-```
-
-### Backend (Render / Railway)
-Deploy `backend/` as a Python web service with:
-```
-Build: pip install -r requirements.txt
-Start: uvicorn main:app --host 0.0.0.0 --port 8000
-```
-
----
 
 ## Ground Station Network
 
