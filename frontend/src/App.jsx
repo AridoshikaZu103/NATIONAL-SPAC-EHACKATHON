@@ -10,6 +10,9 @@ import ProximityView from './components/ProximityView';
 import { HelpTutorial, ToastContainer, createToast, ReportModal, ThreatAlert } from './components/HelpTutorial';
 import './App.css';
 
+// API base URL: empty for local dev (Vite proxy), backend URL for Vercel
+const API = import.meta.env.VITE_API_URL || '';
+
 const SAT_IDS = ['alpha-01', 'alpha-02', 'alpha-03', 'alpha-04', 'alpha-05', 'alpha-06'];
 
 export default function App() {
@@ -60,7 +63,7 @@ export default function App() {
     const fetchSnapshot = async () => {
       if (isPaused) return;
       try {
-        const res = await axios.get('/api/visualization/snapshot');
+        const res = await axios.get(`${API}/api/visualization/snapshot`);
         const d = res.data;
         setSimTime(d.time);
         setSimTimestamp(d.timestamp || '');
@@ -100,7 +103,7 @@ export default function App() {
   useEffect(() => {
     if (!isAutoMode || isPaused || showLanding) return;
     const interval = setInterval(async () => {
-      try { await axios.post('/api/simulate/step', { step_seconds: stepSize }); }
+      try { await axios.post(`${API}/api/simulate/step`, { step_seconds: stepSize }); }
       catch (e) { console.error(e); }
     }, autoSpeed);
     return () => clearInterval(interval);
@@ -109,7 +112,7 @@ export default function App() {
   // ── Actions ──
   const handleStep = async () => {
     try {
-      const res = await axios.post('/api/simulate/step', { step_seconds: stepSize });
+      const res = await axios.post(`${API}/api/simulate/step`, { step_seconds: stepSize });
       addToast('info', 'STEP COMPLETE', 'Advanced ' + (stepSize >= 3600 ? (stepSize/3600) + 'hr' : stepSize + 's') + '. Maneuvers: ' + (res.data.maneuvers_executed || 0));
     } catch (e) { console.error(e); }
   };
@@ -134,7 +137,7 @@ export default function App() {
       if (count <= 0) {
         clearInterval(timer);
         // Fire threat
-        axios.post('/api/telemetry', {
+        axios.post(`${API}/api/telemetry`, {
           timestamp: new Date().toISOString(),
           objects: [threatObj]
         }).then(() => {
