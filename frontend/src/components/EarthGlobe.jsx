@@ -11,20 +11,19 @@ const GROUND_STATIONS = [
   { id: 'McMurdo', lat: -77.84, lon: 166.66 }
 ];
 
-export default function EarthGlobe({ isPaused, satellites = [], debris = [], threats = [], onTelemetryUpdate, onCollisionWarning }) {
+export default function EarthGlobe({ isPaused, satellites = [], debris = [], threats = [], onTelemetryUpdate, onCollisionWarning, simTime = 0 }) {
   const mountRef = useRef(null);
-  
-  // Refs to hold our 3D groups so we can update them without re-creating the scene
   const sceneRef = useRef(null);
   const dataGroupRef = useRef(null);
+  const sunRef = useRef(null);
 
   useEffect(() => {
     if (!mountRef.current) return;
 
     const TEXTURE_PATH = 'https://s3-us-west-2.amazonaws.com/s.cdpn.io/123879/';
     const earthRadius = 80;
-    
-    // Scene setup
+
+    // Scene
     const scene = new THREE.Scene();
     sceneRef.current = scene;
 
@@ -33,45 +32,41 @@ export default function EarthGlobe({ isPaused, satellites = [], debris = [], thr
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(mountRef.current.clientWidth, mountRef.current.clientHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     mountRef.current.appendChild(renderer.domElement);
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enablePan = true;
-    controls.enableZoom = true; 
+    controls.enableZoom = true;
     controls.maxDistance = earthRadius * 8;
     controls.minDistance = earthRadius * 2;
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
 
     // Groups
-    const baseRotationPoint = new THREE.Group();
-    scene.add(baseRotationPoint);
-    
     const worldRotationPoint = new THREE.Group();
     scene.add(worldRotationPoint);
 
-    const dataGroup = new THREE.Group(); // Holds satellites, debris, threats
+    const dataGroup = new THREE.Group();
     worldRotationPoint.add(dataGroup);
     dataGroupRef.current = dataGroup;
 
-    // Lighting - modern Three.js requires 0 decay to simulate legacy PointLights over large distances, or high intensity.
-    scene.add(new THREE.AmbientLight(0x222222, 2)); // Boosted ambient
+    // Lighting — Day/Night via sun position
+    scene.add(new THREE.AmbientLight(0x111122, 1.5));
 
-    const sun = new THREE.DirectionalLight(0xffeecc, 3); // Sun is better as DirectionalLight
+    const sun = new THREE.DirectionalLight(0xffeecc, 3.5);
     sun.position.set(-400, 0, 100);
+    sunRef.current = sun;
     scene.add(sun);
 
-    // Fill lights
-    const light2 = new THREE.DirectionalLight(0xffffff, 0.8);
-    light2.position.set(-400, 0, 250);
-    scene.add(light2);
-    
-    const light3 = new THREE.DirectionalLight(0xffffff, 0.8);
-    light3.position.set(-400, 0, -150);
-    scene.add(light3);
+    // Hemisphere light for subtle blue tint on dark side
+    const hemi = new THREE.HemisphereLight(0x0044ff, 0x000000, 0.3);
+    scene.add(hemi);
 
     // Earth Sphere
     const loader = new THREE.TextureLoader();
     loader.setCrossOrigin('anonymous');
-    
+
     const texture = loader.load(TEXTURE_PATH + 'ColorMap.jpg');
     const bump = loader.load(TEXTURE_PATH + 'Bump.jpg');
     const spec = loader.load(TEXTURE_PATH + 'SpecMask.jpg');
@@ -80,15 +75,18 @@ export default function EarthGlobe({ isPaused, satellites = [], debris = [], thr
     const earthGeo = new THREE.SphereGeometry(earthRadius, 64, 64);
     const earthMat = new THREE.MeshPhongMaterial({
       color: 0xffffff,
-      shininess: 5,
+      shininess: 8,
       map: texture,
       specularMap: spec,
       specular: new THREE.Color(0x333333),
       bumpMap: bump,
+      bumpScale: 0.5,
+      emissive: new THREE.Color(0x112244),
+      emissiveIntensity: 0.08,
     });
-    
+
     const sphere = new THREE.Mesh(earthGeo, earthMat);
-    sphere.rotation.y = -1 * (8.7 * Math.PI / 17); // Focus on prime meridian
+    sphere.rotation.y = -1 * (8.7 * Math.PI / 17);
     worldRotationPoint.add(sphere);
 
     // Cloud Layer
@@ -96,16 +94,30 @@ export default function EarthGlobe({ isPaused, satellites = [], debris = [], thr
     const cloudMat = new THREE.MeshPhongMaterial({
       alphaMap: alpha,
       transparent: true,
-      side: THREE.DoubleSide
+      side: THREE.DoubleSide,
+      opacity: 0.4,
+      depthWrite: false,
     });
     const sphereCloud = new THREE.Mesh(cloudGeo, cloudMat);
     worldRotationPoint.add(sphereCloud);
 
+    // Atmosphere glow (rim light effect)
+    const atmosGeo = new THREE.SphereGeometry(earthRadius * 1.015, 64, 64);
+    const atmosMat = new THREE.MeshPhongMaterial({
+      color: 0x0088ff,
+      transparent: true,
+      opacity: 0.08,
+      side: THREE.BackSide,
+      depthWrite: false,
+    });
+    const atmosphere = new THREE.Mesh(atmosGeo, atmosMat);
+    worldRotationPoint.add(atmosphere);
+
     // Glow Sprite
-    const glowMap = loader.load(TEXTURE_PATH + "glow.png");
+    const glowMap = loader.load(TEXTURE_PATH + 'glow.png');
     const spriteMaterial = new THREE.SpriteMaterial({
       map: glowMap,
-      color: 0x0099ff,
+      color: 0x0077cc,
       transparent: true,
       blending: THREE.AdditiveBlending
     });
@@ -113,7 +125,7 @@ export default function EarthGlobe({ isPaused, satellites = [], debris = [], thr
     sprite.scale.set(earthRadius * 2.5, earthRadius * 2.5, 1.0);
     worldRotationPoint.add(sprite);
 
-    // Skybox (stars)
+    // Skybox
     const cubeLoader = new THREE.CubeTextureLoader();
     cubeLoader.setCrossOrigin('anonymous');
     const urls = Array(6).fill(TEXTURE_PATH + 'test.jpg');
@@ -121,20 +133,41 @@ export default function EarthGlobe({ isPaused, satellites = [], debris = [], thr
       scene.background = textureCube;
     });
 
+    // Orbit rings for each satellite slot (thin transparent circles)
+    const orbitRingMat = new THREE.LineBasicMaterial({ color: 0x00e5ff, transparent: true, opacity: 0.06 });
+    for (let i = 0; i < 6; i++) {
+      const inc = (51.6 + i * 0.2) * Math.PI / 180;
+      const r = earthRadius * (1 + 550 / 6371);
+      const pts = [];
+      for (let j = 0; j <= 128; j++) {
+        const a = (j / 128) * Math.PI * 2;
+        pts.push(new THREE.Vector3(
+          r * Math.cos(a),
+          r * Math.sin(a) * Math.sin(inc),
+          r * Math.sin(a) * Math.cos(inc)
+        ));
+      }
+      const orbitGeo = new THREE.BufferGeometry().setFromPoints(pts);
+      const orbitLine = new THREE.Line(orbitGeo, orbitRingMat);
+      orbitLine.rotation.y = i * Math.PI / 3;
+      worldRotationPoint.add(orbitLine);
+    }
+
     // Animation Loop
     let animationId;
+    let elapsed = 0;
     const animate = () => {
       animationId = requestAnimationFrame(animate);
       if (!isPaused) {
-        // Clouds move slightly independently
         sphereCloud.rotation.y += 0.00025;
+        elapsed += 0.016;
       }
       controls.update();
       renderer.render(scene, camera);
     };
     animate();
 
-    // Handle Resize
+    // Resize
     const handleResize = () => {
       if (!mountRef.current) return;
       camera.aspect = mountRef.current.clientWidth / mountRef.current.clientHeight;
@@ -149,108 +182,117 @@ export default function EarthGlobe({ isPaused, satellites = [], debris = [], thr
       if (mountRef.current) mountRef.current.removeChild(renderer.domElement);
       renderer.dispose();
     };
-  }, []); // Only run once on mount
+  }, []);
 
-  // Sync React State (Satellites, Debris) into Three.js Data Group
+  // Rotate sun based on simTime for day/night
+  useEffect(() => {
+    if (!sunRef.current) return;
+    const angle = ((simTime || 0) / 86400) * Math.PI * 2;
+    sunRef.current.position.set(
+      -400 * Math.cos(angle),
+      50 * Math.sin(angle * 0.5),
+      400 * Math.sin(angle)
+    );
+  }, [simTime]);
+
+  // Sync satellites/debris/threats into Three.js
   useEffect(() => {
     if (!dataGroupRef.current) return;
-    
+
     const group = dataGroupRef.current;
-    
-    // Clear existing objects
-    while(group.children.length > 0){ 
-        const child = group.children[0];
-        group.remove(child); 
-        if (child.geometry) child.geometry.dispose();
-        if (child.material) child.material.dispose();
+    while (group.children.length > 0) {
+      const child = group.children[0];
+      group.remove(child);
+      if (child.geometry) child.geometry.dispose();
+      if (child.material) child.material.dispose();
     }
 
     const earthRadius = 80;
 
-    // Helper: Convert Lat/Lon/Alt to Cartesian
     const getPos = (lat, lon, altKm) => {
-      const scale = 1 + (altKm / 6371); 
+      const scale = 1 + (altKm / 6371);
       const r = earthRadius * scale;
       const phi = (90 - lat) * (Math.PI / 180);
-      const theta = (lon + 180) * (Math.PI / 180); // shift lon by 180 to align with map texture
-      
+      const theta = (lon + 180) * (Math.PI / 180);
       const x = -(r * Math.sin(phi) * Math.cos(theta));
       const z = (r * Math.sin(phi) * Math.sin(theta));
       const y = r * Math.cos(phi);
-      
       return new THREE.Vector3(x, y, z);
     };
 
-    // Draw Satellites (Cyan diamonds)
-    const satGeo = new THREE.OctahedronGeometry(1.5, 0);
-    const satMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, wireframe: true });
-    
+    // Satellites (cyan octahedrons with glow)
     satellites.forEach((sat, i) => {
+      const satGeo = new THREE.OctahedronGeometry(1.8, 0);
+      const satMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, wireframe: true });
       const mesh = new THREE.Mesh(satGeo, satMat);
       mesh.position.copy(getPos(sat.lat, sat.lon, sat.alt));
       group.add(mesh);
 
-      // Report telemetry for alpha-1
+      // Small glow sphere around satellite
+      const glowGeo = new THREE.SphereGeometry(3, 8, 8);
+      const glowMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.08 });
+      const glow = new THREE.Mesh(glowGeo, glowMat);
+      glow.position.copy(mesh.position);
+      group.add(glow);
+
       if (i === 0 && onTelemetryUpdate) {
-        onTelemetryUpdate({
-          altitude: sat.alt,
-          velocity: 7.58, 
-          lat: sat.lat,
-          lon: sat.lon,
-          inclination: 51.6
-        });
+        onTelemetryUpdate({ altitude: sat.alt, velocity: 7.58, lat: sat.lat, lon: sat.lon, inclination: 51.6 });
       }
     });
 
-    // Draw Ground Stations (Green Triangles / Cones)
+    // Ground Stations (green cones)
     const gsGeo = new THREE.ConeGeometry(1.5, 3, 4);
-    gsGeo.rotateX(Math.PI / 2); // Point outward
+    gsGeo.rotateX(Math.PI / 2);
     const gsMat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
     GROUND_STATIONS.forEach(gs => {
       const mesh = new THREE.Mesh(gsGeo, gsMat);
       const pos = getPos(gs.lat, gs.lon, 0);
       mesh.position.copy(pos);
-      mesh.lookAt(new THREE.Vector3(0,0,0)); // base facing earth
+      mesh.lookAt(new THREE.Vector3(0, 0, 0));
       group.add(mesh);
     });
 
-    // Draw Debris (Blue points)
-    // We use InstancedMesh or Points for performance, but simple Points is easier.
+    // Debris (blue points — smaller, transparent)
     if (debris.length > 0) {
       const pointsGeo = new THREE.BufferGeometry();
       const vertices = [];
-      // Only draw 500 for perf, debris format: [id, lat, lon, alt]
       debris.slice(0, 500).forEach(d => {
         const v = getPos(d[1], d[2], d[3]);
         vertices.push(v.x, v.y, v.z);
       });
       pointsGeo.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-      const pointsMat = new THREE.PointsMaterial({ color: 0x4488ff, size: 0.8 });
+      const pointsMat = new THREE.PointsMaterial({ color: 0x4488ff, size: 0.5, transparent: true, opacity: 0.6 });
       const points = new THREE.Points(pointsGeo, pointsMat);
       group.add(points);
     }
 
-    // Draw Threats (Red pulsing)
+    // Threats (red pulsing spheres)
     if (threats.length > 0) {
-      const thrGeo = new THREE.SphereGeometry(2, 16, 16);
-      const thrMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
       threats.forEach(t => {
+        const thrGeo = new THREE.SphereGeometry(2.5, 16, 16);
+        const thrMat = new THREE.MeshBasicMaterial({ color: 0xff3366, transparent: true, opacity: 0.8 });
         const mesh = new THREE.Mesh(thrGeo, thrMat);
         mesh.position.copy(getPos(t.pos.lat, t.pos.lon, t.pos.alt));
         group.add(mesh);
+
+        // Threat ring
+        const ringGeo = new THREE.RingGeometry(3.5, 4.5, 32);
+        const ringMat = new THREE.MeshBasicMaterial({ color: 0xff3366, transparent: true, opacity: 0.3, side: THREE.DoubleSide });
+        const ring = new THREE.Mesh(ringGeo, ringMat);
+        ring.position.copy(mesh.position);
+        ring.lookAt(new THREE.Vector3(0, 0, 0));
+        group.add(ring);
       });
 
-      // Cola Warning
       const t = threats[0];
       if (t.timeToCollision < 1800) {
-         if (onCollisionWarning) onCollisionWarning(true);
+        if (onCollisionWarning) onCollisionWarning(true);
       } else {
-         if (onCollisionWarning) onCollisionWarning(false);
+        if (onCollisionWarning) onCollisionWarning(false);
       }
     } else {
       if (onCollisionWarning) onCollisionWarning(false);
     }
-
   }, [satellites, debris, threats, onTelemetryUpdate, onCollisionWarning]);
 
   return (
