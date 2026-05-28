@@ -1,17 +1,38 @@
-/* ── Ground Track Map ── */
+/* -- Ground Track Map -- */
 .ground-track-container {
   width: 100%;
   height: 100%;
   position: relative;
-  background: linear-gradient(180deg, #040810 0%, #0a1628 50%, #060c18 100%);
   border-radius: 16px;
   overflow: hidden;
+  background: #040810;
 }
 
+/* Real Earth image background (NASA Blue Marble) */
+.ground-track-earth-bg {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-image: url('https://eoimages.gsfc.nasa.gov/images/imagerecords/57000/57752/land_shallow_topo_2048.jpg');
+  background-size: 100% 100%;
+  background-position: center;
+  background-repeat: no-repeat;
+  filter: brightness(0.55) saturate(1.1) contrast(1.05);
+  z-index: 1;
+}
+
+/* Night overlay */
+.ground-track-night-overlay {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* Title bar */
 .ground-track-title {
   position: absolute;
-  top: 12px;
-  left: 14px;
+  top: 10px;
+  left: 12px;
   z-index: 10;
   display: flex;
   align-items: center;
@@ -20,28 +41,42 @@
 
 .ground-track-title-text {
   color: #00e5ff;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   font-weight: 600;
   letter-spacing: 2px;
   text-shadow: 0 0 10px rgba(0, 229, 255, 0.3);
 }
 
 .ground-track-time {
-  color: #666;
-  font-size: 0.7rem;
+  color: #999;
+  font-size: 0.65rem;
   font-family: monospace;
-  background: rgba(0, 0, 0, 0.4);
+  background: rgba(0, 0, 0, 0.5);
   padding: 2px 8px;
   border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
+.ground-track-daynight-badge {
+  color: #ffaa00;
+  font-size: 0.55rem;
+  font-family: monospace;
+  background: rgba(255, 170, 0, 0.08);
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 170, 0, 0.15);
+  letter-spacing: 1px;
+}
+
+/* SVG overlay */
 .ground-track-svg {
   position: absolute;
   top: 0;
   left: 0;
+  z-index: 5;
 }
 
-/* Satellite marker pulse animation */
+/* Satellite marker pulse */
 @keyframes sat-pulse {
   0%, 100% { opacity: 1; filter: drop-shadow(0 0 3px #00ffff); }
   50% { opacity: 0.7; filter: drop-shadow(0 0 8px #00ffff); }
@@ -52,7 +87,7 @@
   animation: sat-pulse 2s ease-in-out infinite;
 }
 
-/* Ground station range circle */
+/* Ground station range circle rotation */
 @keyframes gs-rotate {
   from { stroke-dashoffset: 0; }
   to { stroke-dashoffset: 20; }
@@ -62,7 +97,7 @@
   animation: gs-rotate 8s linear infinite;
 }
 
-/* Ground station marker glow */
+/* Ground station glow */
 @keyframes gs-glow {
   0%, 100% { filter: drop-shadow(0 0 2px #00ff00); }
   50% { filter: drop-shadow(0 0 6px #00ff00); }
@@ -72,30 +107,37 @@
   animation: gs-glow 3s ease-in-out infinite;
 }
 
-/* Satellite trail */
-.sat-trail-history {
-  transition: d 0.45s ease-out;
-}
+/* Trail transitions */
+.sat-trail-history { transition: d 0.45s ease-out; }
+.sat-trail-future { transition: d 0.45s ease-out; }
 
-.sat-trail-future {
-  transition: d 0.45s ease-out;
-}
-
-/* Info badge in bottom right */
+/* Info badge */
 .ground-track-info {
   position: absolute;
-  bottom: 10px;
+  bottom: 8px;
   right: 10px;
   z-index: 10;
   display: flex;
-  gap: 12px;
-  font-size: 0.6rem;
+  gap: 10px;
+  font-size: 0.55rem;
   font-family: monospace;
   color: #888;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.04);
 }
 
 .ground-track-info span {
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .ground-track-title-text { font-size: 0.65rem; letter-spacing: 1px; }
+  .ground-track-time { font-size: 0.55rem; }
+  .ground-track-info { font-size: 0.5rem; gap: 6px; }
+  .ground-track-daynight-badge { display: none; }
 }

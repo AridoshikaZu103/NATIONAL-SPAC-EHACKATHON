@@ -20,7 +20,7 @@ export default function GroundTrackMap({ satellites, time }) {
     y: ((90 - lat) / 180) * 100
   });
 
-  // Store ONLY last 15 points per satellite (keeps trails clean)
+  // Store last 15 trail points per satellite
   useEffect(() => {
     if (!satellites || satellites.length === 0) return;
     satellites.forEach((sat, i) => {
@@ -28,7 +28,6 @@ export default function GroundTrackMap({ satellites, time }) {
       if (!trailsRef.current[key]) trailsRef.current[key] = [];
       const pt = getXY(sat.lat, sat.lon);
       const arr = trailsRef.current[key];
-      // Avoid duplicate points
       if (arr.length === 0 || Math.abs(arr[arr.length - 1].x - pt.x) > 0.1 || Math.abs(arr[arr.length - 1].y - pt.y) > 0.1) {
         arr.push(pt);
       }
@@ -38,7 +37,6 @@ export default function GroundTrackMap({ satellites, time }) {
 
   const toSvgPath = (pts) => {
     if (!pts || pts.length < 2) return '';
-    // Break path at wrap-around (lon jump > 40%)
     let d = '';
     for (let i = 0; i < pts.length; i++) {
       if (i === 0) { d += 'M' + pts[i].x.toFixed(1) + ',' + pts[i].y.toFixed(1); continue; }
@@ -51,7 +49,7 @@ export default function GroundTrackMap({ satellites, time }) {
     return d;
   };
 
-  // Simple predicted path (short, clean)
+  // Simple predicted path
   const predictPath = (sat, i) => {
     const pts = [];
     const inc = sat.inclination || 51.6;
@@ -64,56 +62,93 @@ export default function GroundTrackMap({ satellites, time }) {
     return toSvgPath(pts);
   };
 
-  // Sinusoidal terminator
+  // Day/night terminator — position moves with simTime
   const tPhase = ((time || 0) / 86400) * 2 * Math.PI;
+  const sunLon = ((-tPhase * 180 / Math.PI) % 360 + 360) % 360; // Sun subsolar longitude [0,360]
+
+  // Build a terminator polygon (night = right side of terminator)
+  // The terminator is roughly a sinusoidal curve offset by sun position
   const terminatorPath = (() => {
+    // Night shadow overlay: a polygon covering the "dark" half
+    const nightCenterX = ((sunLon + 180) % 360 / 360) * 100; // opposite of sun
     let d = '';
-    for (let i = 0; i <= 40; i++) {
-      const frac = i / 40;
-      const x = frac * 100;
-      const yOff = 12 * Math.sin(tPhase + frac * Math.PI * 2);
-      d += (i === 0 ? 'M' : 'L') + x.toFixed(1) + ',' + (50 + yOff).toFixed(1);
+    for (let i = 0; i <= 50; i++) {
+      const frac = i / 50;
+      const yPct = frac * 100;
+      const lat = 90 - frac * 180;
+      // Terminator wobble based on axial tilt (23.5 deg)
+      const wobble = 23.5 * Math.sin(tPhase);
+      const lonOffset = Math.acos(Math.max(-1, Math.min(1, -Math.tan(lat * Math.PI / 180) * Math.tan(wobble * Math.PI / 180)))) * 180 / Math.PI;
+      const xLeft = nightCenterX - (lonOffset / 360) * 100;
+      const xRight = nightCenterX + (lonOffset / 360) * 100;
+      if (i === 0) {
+        d += 'M' + xLeft.toFixed(1) + ',' + yPct.toFixed(1);
+      } else {
+        d += ' L' + xLeft.toFixed(1) + ',' + yPct.toFixed(1);
+      }
     }
-    return d + ' L100,100 L0,100 Z';
+    // Go back up via right edge
+    for (let i = 50; i >= 0; i--) {
+      const frac = i / 50;
+      const yPct = frac * 100;
+      const lat = 90 - frac * 180;
+      const wobble = 23.5 * Math.sin(tPhase);
+      const lonOffset = Math.acos(Math.max(-1, Math.min(1, -Math.tan(lat * Math.PI / 180) * Math.tan(wobble * Math.PI / 180)))) * 180 / Math.PI;
+      const xRight = nightCenterX + (lonOffset / 360) * 100;
+      d += ' L' + xRight.toFixed(1) + ',' + yPct.toFixed(1);
+    }
+    d += ' Z';
+    return d;
   })();
 
   return (
     <div className="ground-track-container">
+      {/* Real Earth image background */}
+      <div className="ground-track-earth-bg" />
+
+      {/* Day/night overlay */}
+      <div className="ground-track-night-overlay">
+        <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
+          <path d={terminatorPath} fill="rgba(0,0,15,0.55)" />
+        </svg>
+      </div>
+
       <div className="ground-track-title">
         <span className="ground-track-title-text">GROUND TRACK (MERCATOR)</span>
         <span className="ground-track-time">T+{Math.round((time || 0) / 3600)}h</span>
+        <span className="ground-track-daynight-badge">DAY/NIGHT</span>
       </div>
 
       <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" className="ground-track-svg">
-        {/* Grid */}
-        {[0,20,40,60,80,100].map(x => (
-          <line key={'gx'+x} x1={x} y1={0} x2={x} y2={100} stroke="rgba(0,212,255,0.05)" strokeWidth="0.15" />
+        {/* Grid lines */}
+        {[0,10,20,30,40,50,60,70,80,90,100].map(x => (
+          <line key={'gx'+x} x1={x} y1={0} x2={x} y2={100} stroke="rgba(255,255,255,0.04)" strokeWidth="0.12" />
         ))}
-        {[0,25,50,75,100].map(y => (
-          <line key={'gy'+y} x1={0} y1={y} x2={100} y2={y} stroke="rgba(0,212,255,0.05)" strokeWidth="0.15" />
+        {[0,12.5,25,37.5,50,62.5,75,87.5,100].map(y => (
+          <line key={'gy'+y} x1={0} y1={y} x2={100} y2={y} stroke="rgba(255,255,255,0.04)" strokeWidth="0.12" />
         ))}
         {/* Equator */}
-        <line x1={0} y1={50} x2={100} y2={50} stroke="rgba(0,212,255,0.12)" strokeWidth="0.2" strokeDasharray="1,1" />
+        <line x1={0} y1={50} x2={100} y2={50} stroke="rgba(255,255,255,0.08)" strokeWidth="0.15" strokeDasharray="1,1" />
+        {/* Prime meridian */}
+        <line x1={50} y1={0} x2={50} y2={100} stroke="rgba(255,255,255,0.06)" strokeWidth="0.12" strokeDasharray="1,1" />
 
-        {/* Continents */}
-        <path d="M12,28 L15,24 L19,22 L23,21 L27,23 L29,27 L29,32 L27,36 L24,39 L20,41 L16,40 L12,36 Z" fill="rgba(0,229,255,0.04)" stroke="rgba(0,229,255,0.1)" strokeWidth="0.2" />
-        <path d="M24,54 L27,52 L30,54 L31,60 L29,66 L27,70 L24,68 L22,62 Z" fill="rgba(0,229,255,0.04)" stroke="rgba(0,229,255,0.1)" strokeWidth="0.2" />
-        <path d="M47,24 L51,21 L54,23 L53,28 L49,29 Z" fill="rgba(0,229,255,0.04)" stroke="rgba(0,229,255,0.1)" strokeWidth="0.2" />
-        <path d="M47,38 L53,36 L57,39 L58,46 L56,54 L52,58 L48,54 L46,46 Z" fill="rgba(0,229,255,0.04)" stroke="rgba(0,229,255,0.1)" strokeWidth="0.2" />
-        <path d="M56,19 L64,16 L74,15 L82,18 L83,26 L77,32 L66,30 L58,24 Z" fill="rgba(0,229,255,0.04)" stroke="rgba(0,229,255,0.1)" strokeWidth="0.2" />
-        <path d="M78,60 L84,58 L87,62 L85,67 L80,68 Z" fill="rgba(0,229,255,0.04)" stroke="rgba(0,229,255,0.1)" strokeWidth="0.2" />
-
-        {/* Terminator */}
-        <path d={terminatorPath} fill="rgba(0,0,20,0.25)" />
+        {/* Lat/Lon labels */}
+        <text x="1" y="50.5" fill="rgba(255,255,255,0.15)" fontSize="1.8" fontFamily="monospace">0N</text>
+        <text x="1" y="25.5" fill="rgba(255,255,255,0.12)" fontSize="1.5" fontFamily="monospace">45N</text>
+        <text x="1" y="75.5" fill="rgba(255,255,255,0.12)" fontSize="1.5" fontFamily="monospace">45S</text>
+        <text x="50.5" y="99" fill="rgba(255,255,255,0.12)" fontSize="1.5" fontFamily="monospace">0E</text>
+        <text x="25" y="99" fill="rgba(255,255,255,0.1)" fontSize="1.3" fontFamily="monospace">90W</text>
+        <text x="75" y="99" fill="rgba(255,255,255,0.1)" fontSize="1.3" fontFamily="monospace">90E</text>
 
         {/* Ground stations */}
         {GROUND_STATIONS.map(gs => {
           const p = getXY(gs.lat, gs.lon);
           return (
             <g key={gs.id} className="gs-marker">
-              <circle cx={p.x} cy={p.y} r={4} fill="none" stroke="rgba(0,255,0,0.12)" strokeWidth="0.25" strokeDasharray="0.8,0.8" className="gs-range-circle" />
+              <circle cx={p.x} cy={p.y} r={4} fill="none" stroke="rgba(0,255,0,0.1)" strokeWidth="0.2" strokeDasharray="0.8,0.8" className="gs-range-circle" />
+              <circle cx={p.x} cy={p.y} r={2} fill="none" stroke="rgba(0,255,0,0.06)" strokeWidth="0.15" />
               <polygon points={p.x+','+(p.y-1)+' '+(p.x+0.8)+','+(p.y+0.5)+' '+(p.x-0.8)+','+(p.y+0.5)} fill="#00ff00" />
-              <text x={p.x + 1.2} y={p.y - 1.2} fill="#00ff00" fontSize="1.6" fontFamily="monospace" opacity="0.5">{gs.id}</text>
+              <text x={p.x + 1.2} y={p.y - 1.2} fill="#00ff00" fontSize="1.4" fontFamily="monospace" opacity="0.45">{gs.id}</text>
             </g>
           );
         })}
@@ -127,15 +162,16 @@ export default function GroundTrackMap({ satellites, time }) {
 
           return (
             <g key={'sat-' + i}>
-              {/* Clean history trail (solid, short) */}
+              {/* History trail */}
               {trail.length > 1 && (
-                <path d={toSvgPath(trail)} fill="none" stroke={color} strokeWidth="0.3" opacity="0.4" />
+                <path d={toSvgPath(trail)} fill="none" stroke={color} strokeWidth="0.3" opacity="0.5" />
               )}
-              {/* Short predicted path (dashed) */}
-              <path d={predictPath(sat, i)} fill="none" stroke={color} strokeWidth="0.2" strokeDasharray="0.8,0.5" opacity="0.3" />
-              {/* Satellite diamond marker */}
+              {/* Predicted path */}
+              <path d={predictPath(sat, i)} fill="none" stroke={color} strokeWidth="0.2" strokeDasharray="0.8,0.5" opacity="0.25" />
+              {/* Satellite diamond */}
               <polygon points={x+','+(y-1.2)+' '+(x+1.2)+','+y+' '+x+','+(y+1.2)+' '+(x-1.2)+','+y} fill={color} className="sat-marker" />
-              <text x={x + 1.6} y={y - 1} fill={color} fontSize="2" fontFamily="monospace" opacity="0.8">{'\u03B1'}{i+1}</text>
+              {/* Label */}
+              <text x={x + 1.6} y={y - 1} fill={color} fontSize="1.8" fontFamily="monospace" opacity="0.8">{'\u03B1'}{i+1}</text>
             </g>
           );
         })}
@@ -144,6 +180,7 @@ export default function GroundTrackMap({ satellites, time }) {
       <div className="ground-track-info">
         <span><span style={{color:'#00ffff'}}>&#9670;</span> Satellites</span>
         <span><span style={{color:'#00ff00'}}>&#9650;</span> Ground Stn</span>
+        <span><span style={{color:'rgba(255,255,255,0.3)'}}>|</span> Day/Night</span>
       </div>
     </div>
   );

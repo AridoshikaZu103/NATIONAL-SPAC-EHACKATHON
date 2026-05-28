@@ -1,92 +1,97 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import './HelpTutorial.css';
 
-// ─── Tutorial Steps ───
+// --- Tutorial Steps (7 steps, no emojis) ---
 const TUTORIAL_STEPS = [
   {
-    icon: '\uD83D\uDE80',
+    icon: '*',
     title: 'Welcome to Orbital Insight',
     subtitle: 'Space Situational Awareness Dashboard',
     body: (
       <>
-        <p>This dashboard monitors <span className="key">6 satellites</span> orbiting Earth at ~550 km altitude alongside <span className="key">518 debris</span> objects.</p>
-        <p>Your mission: <strong>detect collisions early and dodge them automatically</strong> before they destroy your satellites.</p>
+        <p>This dashboard monitors <span className="key">6 satellites</span> (Walker Delta constellation) orbiting at ~550 km alongside <span className="key">518 tracked debris</span> objects.</p>
+        <p>Your mission: <strong>detect collisions early and dodge them automatically</strong> using the onboard COLA (Collision Avoidance) engine.</p>
+        <p>The simulation uses <span className="key">RK4 orbital propagation</span> for realistic physics.</p>
       </>
     ),
   },
   {
-    icon: '\u23F1\uFE0F',
-    title: 'Step 1: Advance Time',
-    subtitle: 'Simulate Forward',
+    icon: '>',
+    title: 'Step 1: Start the Simulation',
+    subtitle: 'PLAY and AUTO Controls',
     body: (
       <>
-        <p>Click <span className="key">STEP +1HR</span> to advance the simulation by 1 hour. The physics engine propagates all 524 objects through space.</p>
-        <p>Use the <span className="key">Step</span> dropdown to change the time jump (1 min to 1 day).</p>
-        <p>Enable <span className="key">AUTO ON</span> to auto-advance continuously. Adjust speed with the slider.</p>
+        <p>Click <span className="key">PLAY</span> to begin live polling from the backend. Data refreshes every 500ms.</p>
+        <p>Click <span className="key">AUTO ON</span> to auto-advance time continuously. Both work independently.</p>
+        <p>Use <span className="key">STEP +1HR</span> for manual time jumps. Change step size with the dropdown (1 min to 1 day).</p>
+        <p>Adjust the <span className="key">Speed slider</span> to control auto-step interval.</p>
       </>
     ),
   },
   {
-    icon: '\u26A0\uFE0F',
+    icon: '!',
     title: 'Step 2: Spawn a Threat',
-    subtitle: 'Create a collision scenario',
+    subtitle: 'Simulating debris on collision course',
     body: (
       <>
-        <p>Click <span className="crit">SPAWN THREAT</span> to inject a debris object on a collision course with alpha-1.</p>
-        <p>Watch the <span className="warn">Bullseye Plot</span> and <span className="key">Proximity Ops</span> radar light up with the incoming threat.</p>
-        <p>The threat counter in the top bar turns <span className="crit">red</span>.</p>
+        <p>Click <span className="crit">SPAWN THREAT</span> to inject debris targeting a <span className="warn">random satellite</span> (any of the 6).</p>
+        <p>A <span className="crit">COLLISION WARNING</span> alert appears at screen center with target ID, TCA, and risk level.</p>
+        <p>Click <span className="key">ACKNOWLEDGE</span> to dismiss, or it auto-closes after 6 seconds.</p>
+        <p>Watch the <span className="warn">Bullseye Plot</span> and <span className="key">Proximity Ops</span> radar light up.</p>
       </>
     ),
   },
   {
-    icon: '\uD83D\uDEE1\uFE0F',
-    title: 'Step 3: Auto-Dodge',
-    subtitle: 'COLA Engine Fires Automatically',
+    icon: '#',
+    title: 'Step 3: Auto-Dodge (COLA)',
+    subtitle: 'Collision Avoidance Engine fires',
     body: (
       <>
-        <p>Keep stepping forward. When the threat's <span className="warn">Time to Closest Approach (TCA)</span> drops below 5 hours:</p>
-        <p>1. A <span className="warn">CDM</span> (Conjunction Data Message) is created</p>
+        <p>Keep stepping. When TCA drops below <span className="warn">5 hours</span>:</p>
+        <p>1. A <span className="warn">CDM</span> (Conjunction Data Message) is generated</p>
         <p>2. Evasion + Recovery burns are scheduled on the <span className="key">Gantt Timeline</span></p>
-        <p>3. When TCA drops below 5 hrs, the <span className="safe">COLA engine fires</span> automatically, consuming 2.5 kg of fuel</p>
-        <p>4. The threat disappears. Satellite is safe!</p>
+        <p>3. The <span className="safe">COLA engine fires</span> automatically, consuming ~2.5 kg fuel</p>
+        <p>4. The threat is neutralized. Satellite returns to nominal orbit.</p>
       </>
     ),
   },
   {
-    icon: '\uD83D\uDCCA',
+    icon: '%',
     title: 'Step 4: Monitor Resources',
-    subtitle: 'Check fuel and costs',
+    subtitle: 'Fleet fuel and delta-V costs',
     body: (
       <>
-        <p><span className="key">Fleet Propellant</span> bars show remaining fuel per satellite (starts at 50 kg each).</p>
-        <p>Color codes: <span className="safe">Green</span> = healthy, <span className="warn">Yellow</span> = caution, <span className="crit">Red</span> = critical.</p>
-        <p><span className="key">Delta-V Cost Analysis</span> tracks cumulative fuel spent vs. collisions avoided.</p>
+        <p><span className="key">Fleet Propellant</span> bars show fuel per satellite (50 kg max).</p>
+        <p>Colors: <span className="safe">Green</span> = healthy, <span className="warn">Yellow</span> = caution, <span className="crit">Red</span> = critical.</p>
+        <p><span className="key">Delta-V Cost Analysis</span> tracks cumulative fuel vs. collisions avoided.</p>
+        <p>Each evasion costs ~2.5 kg. Plan wisely to extend mission life.</p>
       </>
     ),
   },
   {
-    icon: '\uD83D\uDDFA\uFE0F',
-    title: 'Step 5: Track Satellites',
-    subtitle: 'Ground Track & Telemetry',
+    icon: '@',
+    title: 'Step 5: Track & Observe',
+    subtitle: '3D Globe, Ground Track, Day/Night',
     body: (
       <>
-        <p>The <span className="key">Ground Track (Mercator)</span> map shows satellite positions on a 2D map with live CSS transitions.</p>
-        <p>Click <span className="key">{'\u03B1'}1</span> through <span className="key">{'\u03B1'}6</span> tabs in the telemetry panel to view individual satellite data.</p>
-        <p>The <span className="key">3D Globe</span> shows the full orbital picture. Drag to rotate, scroll to zoom.</p>
+        <p>The <span className="key">3D Globe</span> shows real Earth with <span className="warn">day/night lighting</span> that rotates with sim time. Drag to rotate, scroll to zoom.</p>
+        <p>The <span className="key">Ground Track (Mercator)</span> uses a real NASA Earth image with a <span className="warn">day/night terminator</span> overlay.</p>
+        <p>Click <span className="key">{'\u03B1'}1</span> through <span className="key">{'\u03B1'}6</span> tabs to view individual satellite telemetry, bullseye, and proximity data.</p>
       </>
     ),
   },
   {
-    icon: '\uD83D\uDCC4',
-    title: 'Reports',
-    subtitle: 'View simulation summary',
+    icon: '=',
+    title: 'Step 6: Reports & Analysis',
+    subtitle: 'Mission summary and CDM logs',
     body: (
       <>
-        <p>Click the <span className="key">REPORT</span> button in the header to see a live summary:</p>
+        <p>Click <span className="key">REPORT</span> to view a live simulation summary:</p>
         <p>- Fleet fuel status for all 6 satellites</p>
-        <p>- CDM log with risk levels and TCA</p>
+        <p>- CDM log with risk levels and TCA values</p>
         <p>- Maneuver history (evasion + recovery burns)</p>
-        <p>The report updates in real-time as you simulate.</p>
+        <p>- Total fuel consumed and fleet health assessment</p>
+        <p>Reports update in real-time as the simulation progresses.</p>
       </>
     ),
   },
