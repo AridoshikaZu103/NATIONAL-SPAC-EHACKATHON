@@ -242,7 +242,7 @@ export default function App() {
               <div className="legend-item"><span className="symbol green-triangle">&#9650;</span> Ground Stn</div>
             </div>
             <div className="globe-container">
-              <EarthGlobe isPaused={isPaused} satellites={satellites} debris={debris} threats={threats} onTelemetryUpdate={() => {}} onCollisionWarning={(v) => setColaWarning(v)} />
+              <EarthGlobe isPaused={isPaused} satellites={satellites} debris={debris} threats={threats} simTime={simTime} onTelemetryUpdate={() => {}} onCollisionWarning={(v) => setColaWarning(v)} />
             </div>
           </div>
 
