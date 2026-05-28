@@ -1,99 +1,79 @@
 import React from 'react';
-import { PolarAngleAxis, PolarGrid, PolarRadiusAxis, Radar, RadarChart, ResponsiveContainer, Tooltip, Scatter, ScatterChart, XAxis, YAxis, ZAxis, ReferenceArea } from 'recharts';
 
-export default function BullseyePlot({ debris, satellites, threats }) {
-  // Center is the selected satellite (alpha-1 usually)
-  const maxDistance = 5000; // Display up to 5km
-  
-  // Format threats into scatter points: Radius = TCA, Angle = some fixed or random relative approach vector for demo.
-  // We plot Angle (theta) vs TCA (radius). In Recharts ScatterChart, we can fake a polar view by doing math, 
-  // or use the actual ScatterChart with polar settings if supported. Recharts doesn't natively support polar scatter well.
-  // Instead, we will use standard X/Y scatter but map polar coordinates (TCA, Angle) into X/Y.
-  
-  const formattedData = threats.map((t, i) => {
-    // Math logic: TCA is distance. If TCA > 5000s, clamp it.
-    const tca = Math.min(t.timeToCollision, maxDistance);
-    
-    // Determine Risk Color based on PDF: Green = Safe, Yellow < 5000m (or s), Red < 1000m.
-    // The PDF says "Red = Critical < 1 km", "Yellow = Warning < 5 km". But threats have TCA (time to collision).
-    // Let's assume distance in km is proportional to TCA for the hackathon UI, or simply use TCA as proxy.
-    const dist = t.timeToCollision; // Let's pretend this is meters for the visual scale
+export default function BullseyePlot({ threats = [] }) {
+  const maxTCA = 10000; // Max TCA to display (seconds)
+
+  // Always show the radar grid, even with no threats
+  const rings = [
+    { r: 90, label: '10k s', color: 'rgba(0,255,136,0.15)' },
+    { r: 60, label: '5k s', color: 'rgba(255,170,0,0.2)' },
+    { r: 30, label: '1k s', color: 'rgba(255,51,102,0.2)' },
+  ];
+
+  // Map threats to polar coordinates
+  const threatPoints = threats.map((t, i) => {
+    const tca = Math.min(t.timeToCollision, maxTCA);
+    const radiusPct = (tca / maxTCA) * 90; // Max 90% of container radius
+    const angle = (i * 72 + 30) * (Math.PI / 180); // Spread evenly
+    const cx = 50 + Math.cos(angle) * radiusPct * 0.5;
+    const cy = 50 + Math.sin(angle) * radiusPct * 0.5;
+
     let color = '#00ff88';
-    if (dist < 1000) color = '#ff4444';
-    else if (dist < 5000) color = '#ffaa00';
-    
-    const angle = (i * 45) * (Math.PI / 180); // Fake angle
-    const x = Math.cos(angle) * tca;
-    const y = Math.sin(angle) * tca;
-    
-    return { id: t.id, x, y, tca, dist, color };
+    let risk = 'SAFE';
+    if (tca < 1000) { color = '#ff3366'; risk = 'CRITICAL'; }
+    else if (tca < 5000) { color = '#ffaa00'; risk = 'WARNING'; }
+
+    return { id: t.id, cx, cy, color, risk, tca: Math.round(tca) };
   });
 
-  // Include the center point (Satellite)
-  const centerPoint = [{ id: 'SAT', x: 0, y: 0, color: '#00ffff' }];
-
-  const CustomShape = (props) => {
-    const { cx, cy, fill, payload } = props;
-    if (payload.id === 'SAT') {
-      return <polygon points={`${cx},${cy-5} ${cx+5},${cy} ${cx},${cy+5} ${cx-5},${cy}`} fill="#00ffff" />;
-    }
-    // Debris threat is a square if red, else circle
-    if (fill === '#ff4444') {
-      return <rect x={cx-3} y={cy-3} width={6} height={6} fill={fill} />;
-    }
-    return <circle cx={cx} cy={cy} r={3} fill={fill} />;
-  };
-
   return (
-    <div style={{ width: '100%', height: '100%', background: 'rgba(15, 15, 30, 0.6)', borderRadius: '12px', border: '1px solid rgba(0, 212, 255, 0.15)', padding: '16px', display: 'flex', flexDirection: 'column' }}>
-      <h3 style={{ color: '#ffaa00', marginTop: 0, marginBottom: '16px', fontSize: '1rem', textTransform: 'uppercase', letterSpacing: '2px' }}>Conjunction Bullseye</h3>
-      
-      <div style={{ flexGrow: 1, position: 'relative' }}>
-        {/* Radar Rings Background manually drawn to mimic polar grid */}
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
-           <div style={{ width: '80%', height: '80%', borderRadius: '50%', border: '1px solid rgba(0,212,255,0.1)', position: 'absolute' }} />
-           <div style={{ width: '50%', height: '50%', borderRadius: '50%', border: '1px solid rgba(0,212,255,0.2)', position: 'absolute' }} />
-           <div style={{ width: '20%', height: '20%', borderRadius: '50%', border: '1px solid rgba(255,68,68,0.3)', position: 'absolute', background: 'rgba(255,68,68,0.05)' }} />
-           {/* Crosshairs */}
-           <div style={{ width: '100%', height: '1px', background: 'rgba(0,212,255,0.1)', position: 'absolute' }} />
-           <div style={{ width: '1px', height: '100%', background: 'rgba(0,212,255,0.1)', position: 'absolute' }} />
-        </div>
+    <div className="bullseye-container">
+      <h3 className="bullseye-title">CONJUNCTION BULLSEYE</h3>
 
-        <ResponsiveContainer width="100%" height="100%">
-          <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
-            <XAxis type="number" dataKey="x" domain={[-maxDistance, maxDistance]} hide />
-            <YAxis type="number" dataKey="y" domain={[-maxDistance, maxDistance]} hide />
-            <ZAxis range={[20, 200]} />
-            <Tooltip 
-              cursor={{ strokeDasharray: '3 3' }} 
-              content={({ payload }) => {
-                if (!payload || !payload.length) return null;
-                const d = payload[0].payload;
-                if (d.id === 'SAT') return <div style={{ background: '#000', padding: '5px', border: '1px solid #00ffff', color: '#00ffff' }}>Origin Satellite</div>;
-                return (
-                  <div style={{ background: 'rgba(0,0,0,0.8)', padding: '8px', border: `1px solid ${d.color}`, color: '#fff', fontSize: '0.8rem' }}>
-                    <strong>{d.id}</strong><br/>
-                    Miss Dist: {d.dist.toFixed(1)}m<br/>
-                    Risk: <span style={{ color: d.color }}>{d.dist < 1000 ? 'CRITICAL' : (d.dist < 5000 ? 'WARNING' : 'SAFE')}</span>
-                  </div>
-                );
-              }}
-            />
-            {/* Draw threats */}
-            {formattedData.map((entry, index) => (
-              <Scatter key={index} data={[entry]} fill={entry.color} shape={CustomShape} />
-            ))}
-            {/* Draw center satellite */}
-            <Scatter data={centerPoint} fill="#00ffff" shape={CustomShape} />
-          </ScatterChart>
-        </ResponsiveContainer>
+      <div className="bullseye-plot">
+        <svg viewBox="0 0 100 100" width="100%" height="100%">
+          {/* Concentric risk rings */}
+          {rings.map((ring, i) => (
+            <g key={i}>
+              <circle cx="50" cy="50" r={ring.r * 0.5} fill="none" stroke={ring.color} strokeWidth="0.5" strokeDasharray="2,1" />
+              <text x={51} y={50 - ring.r * 0.5 + 3} fill="rgba(255,255,255,0.3)" fontSize="2.5" fontFamily="monospace">{ring.label}</text>
+            </g>
+          ))}
+
+          {/* Crosshairs */}
+          <line x1="5" y1="50" x2="95" y2="50" stroke="rgba(0,212,255,0.1)" strokeWidth="0.3" />
+          <line x1="50" y1="5" x2="50" y2="95" stroke="rgba(0,212,255,0.1)" strokeWidth="0.3" />
+          <line x1="15" y1="15" x2="85" y2="85" stroke="rgba(0,212,255,0.05)" strokeWidth="0.2" />
+          <line x1="85" y1="15" x2="15" y2="85" stroke="rgba(0,212,255,0.05)" strokeWidth="0.2" />
+
+          {/* Center satellite marker */}
+          <polygon points="50,46 54,50 50,54 46,50" fill="#00ffff" />
+          <text x="56" y="49" fill="#00ffff" fontSize="3" fontFamily="monospace">{'\u03B1'}1</text>
+
+          {/* Threat markers */}
+          {threatPoints.map(tp => (
+            <g key={tp.id}>
+              <rect x={tp.cx - 2} y={tp.cy - 2} width={4} height={4} fill={tp.color} rx="0.5">
+                <animate attributeName="opacity" values="1;0.4;1" dur="1.5s" repeatCount="indefinite" />
+              </rect>
+              {/* Connecting line to center */}
+              <line x1="50" y1="50" x2={tp.cx} y2={tp.cy} stroke={tp.color} strokeWidth="0.3" opacity="0.4" strokeDasharray="1,1" />
+              <text x={tp.cx + 3} y={tp.cy - 1} fill={tp.color} fontSize="2.2" fontFamily="monospace">{tp.tca}s</text>
+            </g>
+          ))}
+
+          {/* "No threats" indicator */}
+          {threatPoints.length === 0 && (
+            <text x="50" y="85" fill="rgba(0,255,136,0.5)" fontSize="3" textAnchor="middle" fontFamily="monospace">ALL CLEAR</text>
+          )}
+        </svg>
       </div>
-      
+
       {/* Legend */}
-      <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', fontSize: '0.65rem', color: '#888', marginTop: '10px' }}>
-         <span style={{ color: '#00ff88' }}>SAFE {'>'} 5km</span> | 
-         <span style={{ color: '#ffaa00' }}>WARNING {'<'} 5km</span> | 
-         <span style={{ color: '#ff4444' }}>CRITICAL {'<'} 1km</span>
+      <div className="bullseye-legend">
+        <span style={{ color: '#00ff88' }}>SAFE &gt;5k</span>
+        <span style={{ color: '#ffaa00' }}>WARN &lt;5k</span>
+        <span style={{ color: '#ff3366' }}>CRIT &lt;1k</span>
       </div>
     </div>
   );

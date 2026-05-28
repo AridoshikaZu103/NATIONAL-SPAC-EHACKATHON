@@ -1,12 +1,11 @@
 import React from 'react';
 
-export default function ManeuverGantt({ timeline, currentTime, satellites }) {
-  // We'll show a window of Time: CurrentTime - 1 hour to CurrentTime + 3 hours
+export default function ManeuverGantt({ timeline = [], currentTime = 0 }) {
+  // Show window: CurrentTime - 1hr to CurrentTime + 5hr
   const windowStart = Math.max(0, currentTime - 3600);
-  const windowEnd = windowStart + (4 * 3600); // 4 hours total window
+  const windowEnd = windowStart + (6 * 3600); // 6 hours total
   const windowDuration = windowEnd - windowStart;
 
-  // Group events by satellite ID for row display
   const rows = ['alpha-01', 'alpha-02', 'alpha-03', 'alpha-04', 'alpha-05', 'alpha-06'];
 
   const getLeftPct = (time) => {
@@ -21,92 +20,68 @@ export default function ManeuverGantt({ timeline, currentTime, satellites }) {
     return ((e - s) / windowDuration) * 100;
   };
 
+  // Count events per row for status indicator
+  const hasEvents = rows.map(satId => timeline.some(e => e.satId === satId));
+
   return (
-    <div style={{ width: '100%', height: '100%', background: 'rgba(15, 15, 30, 0.6)', borderRadius: '12px', border: '1px solid rgba(0, 212, 255, 0.15)', padding: '16px', display: 'flex', flexDirection: 'column' }}>
-      <h3 style={{ color: '#ffaa00', marginTop: 0, marginBottom: '16px', fontSize: '1rem', textTransform: 'uppercase', letterSpacing: '2px' }}>Maneuver Timeline (Gantt)</h3>
-      
-      <div style={{ display: 'flex', flexGrow: 1, position: 'relative' }}>
-        
-        {/* Y Axis Labels (Satellites) */}
-        <div style={{ width: '100px', display: 'flex', flexDirection: 'column', justifyContent: 'space-around', borderRight: '1px solid rgba(255,255,255,0.1)', paddingRight: '10px' }}>
+    <div className="gantt-container">
+      <div className="gantt-header">
+        <h3 className="gantt-title">MANEUVER TIMELINE</h3>
+        <span className="gantt-time-badge">T+{Math.round(currentTime / 3600)}h</span>
+      </div>
+
+      <div className="gantt-body">
+        {/* Y Axis */}
+        <div className="gantt-y-axis">
           {rows.map((sat, i) => (
-            <div key={sat} style={{ fontSize: '0.75rem', color: '#ccc', fontFamily: 'monospace' }}>α{i+1}</div>
+            <div key={sat} className="gantt-y-label">
+              <span className="gantt-sat-dot" style={{ background: hasEvents[i] ? '#ffaa00' : '#333' }}></span>
+              {'\u03B1'}{i + 1}
+            </div>
           ))}
         </div>
 
         {/* Timeline Grid */}
-        <div style={{ flexGrow: 1, position: 'relative', background: 'rgba(0,0,0,0.2)', overflow: 'hidden' }}>
-          
-          {/* Vertical Time Guides */}
-          {[0, 1, 2, 3, 4].map(h => (
-            <div key={h} style={{ position: 'absolute', left: `${(h/4)*100}%`, top: 0, bottom: 0, borderLeft: '1px dashed rgba(255,255,255,0.1)' }}>
-              <span style={{ position: 'absolute', top: '-15px', left: '2px', fontSize: '10px', color: '#888' }}>
-                T+{Math.round((windowStart + h*3600)/3600)}h
-              </span>
+        <div className="gantt-grid">
+          {/* Vertical time guides */}
+          {[0, 1, 2, 3, 4, 5, 6].map(h => (
+            <div key={h} className="gantt-time-guide" style={{ left: (h / 6 * 100) + '%' }}>
+              <span className="gantt-time-label">T+{Math.round((windowStart + h * 3600) / 3600)}h</span>
             </div>
           ))}
 
-          {/* Current Time Indicator */}
-          <div style={{
-            position: 'absolute', 
-            left: `${getLeftPct(currentTime)}%`, 
-            top: 0, bottom: 0, 
-            borderLeft: '2px solid #00ff88',
-            zIndex: 10,
-            boxShadow: '0 0 5px #00ff88'
-          }} />
+          {/* Current time indicator */}
+          <div className="gantt-now-line" style={{ left: getLeftPct(currentTime) + '%' }} />
 
-          {/* Rows */}
-          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-around', height: '100%', position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+          {/* Rows with events */}
+          <div className="gantt-rows">
             {rows.map(satId => {
               const satEvents = timeline.filter(e => e.satId === satId);
               return (
-                <div key={satId} style={{ height: '24px', position: 'relative', borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                <div key={satId} className="gantt-row">
                   {satEvents.map(ev => {
                     const left = getLeftPct(ev.timeStart);
                     const width = getWidthPct(ev.timeStart, ev.timeEnd);
                     if (width <= 0) return null;
-                    
+
                     const isEvasion = ev.type === 'EVASION';
-                    const color = isEvasion ? '#ff4444' : '#00d4ff';
-                    
+                    const color = isEvasion ? '#ff3366' : '#00e5ff';
+
                     return (
                       <React.Fragment key={ev.id}>
-                        {/* Main Burn Block */}
-                        <div style={{
-                          position: 'absolute',
-                          left: `${left}%`,
-                          width: `${width}%`,
-                          height: '16px',
-                          top: '4px',
+                        <div className="gantt-event" style={{
+                          left: left + '%',
+                          width: width + '%',
                           background: color,
-                          opacity: 0.8,
-                          borderRadius: '2px',
-                          fontSize: '9px',
-                          color: '#000',
-                          fontWeight: 'bold',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          overflow: 'hidden'
                         }}>
-                          {width > 5 ? ev.type : ''}
+                          {width > 8 ? ev.type : ''}
                         </div>
-                        
-                        {/* 600s Cooldown Block (Blackout Zone) following the burn */}
-                        {/* Only draw if the cooldown fits in the window */}
+                        {/* 600s Cooldown */}
                         {ev.timeEnd < windowEnd && (
-                          <div style={{
-                            position: 'absolute',
-                            left: `${getLeftPct(ev.timeEnd)}%`,
-                            width: `${getWidthPct(ev.timeEnd, ev.timeEnd + 600)}%`,
-                            height: '16px',
-                            top: '4px',
-                            background: 'repeating-linear-gradient(45deg, #333, #333 2px, #000 2px, #000 4px)',
-                            border: '1px solid #555',
-                            opacity: 0.6,
-                            borderRadius: '0 2px 2px 0'
-                          }} title="600s Thruster Cooldown" />
+                          <div className="gantt-cooldown" style={{
+                            left: getLeftPct(ev.timeEnd) + '%',
+                            width: getWidthPct(ev.timeEnd, ev.timeEnd + 600) + '%',
+                          }} title="600s Cooldown" />
                         )}
                       </React.Fragment>
                     );
@@ -115,15 +90,22 @@ export default function ManeuverGantt({ timeline, currentTime, satellites }) {
               );
             })}
           </div>
+
+          {/* Empty state */}
+          {timeline.length === 0 && (
+            <div className="gantt-empty">
+              NO MANEUVERS SCHEDULED — SPAWN A THREAT TO TRIGGER COLA
+            </div>
+          )}
         </div>
       </div>
-      
+
       {/* Legend */}
-      <div style={{ display: 'flex', gap: '16px', marginTop: '12px', fontSize: '0.75rem', justifyContent: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><div style={{ width: '12px', height: '12px', background: '#ff4444', borderRadius: '2px' }}/> Evasion Burn</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><div style={{ width: '12px', height: '12px', background: '#00d4ff', borderRadius: '2px' }}/> Recovery Burn</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><div style={{ width: '12px', height: '12px', background: 'repeating-linear-gradient(45deg, #333, #333 2px, #000 2px, #000 4px)', border: '1px solid #555' }}/> 600s Cooldown (Blackout)</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><div style={{ width: '2px', height: '12px', background: '#00ff88' }}/> Current Time</div>
+      <div className="gantt-legend">
+        <div className="gantt-legend-item"><div className="gantt-legend-box" style={{ background: '#ff3366' }}></div>EVASION</div>
+        <div className="gantt-legend-item"><div className="gantt-legend-box" style={{ background: '#00e5ff' }}></div>RECOVERY</div>
+        <div className="gantt-legend-item"><div className="gantt-legend-box gantt-cooldown-box"></div>COOLDOWN</div>
+        <div className="gantt-legend-item"><div style={{ width: '2px', height: '12px', background: '#00ff88' }}></div>NOW</div>
       </div>
     </div>
   );
