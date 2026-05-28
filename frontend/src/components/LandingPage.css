@@ -1,0 +1,235 @@
+/* ── Landing / Splash Page ── */
+.landing-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(ellipse at center, #0d1025 0%, #050508 60%, #000 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Animated star field */
+.star-field {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  pointer-events: none;
+}
+
+.star {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  background: #fff;
+  border-radius: 50%;
+  animation: star-twinkle 3s ease-in-out infinite alternate;
+}
+
+@keyframes star-twinkle {
+  0% { opacity: 0.2; transform: scale(0.8); }
+  100% { opacity: 1; transform: scale(1.2); }
+}
+
+/* Orbital rings animation */
+.orbit-ring {
+  position: absolute;
+  border: 1px solid rgba(0, 229, 255, 0.08);
+  border-radius: 50%;
+  animation: orbit-spin linear infinite;
+}
+
+@keyframes orbit-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.orbit-ring-1 {
+  width: 300px; height: 300px;
+  animation-duration: 20s;
+  border-color: rgba(0, 229, 255, 0.06);
+}
+.orbit-ring-2 {
+  width: 500px; height: 500px;
+  animation-duration: 30s;
+  animation-direction: reverse;
+  border-color: rgba(0, 229, 255, 0.04);
+}
+.orbit-ring-3 {
+  width: 700px; height: 700px;
+  animation-duration: 40s;
+  border-color: rgba(0, 229, 255, 0.03);
+}
+
+/* Orbiting dots on the rings */
+.orbit-dot {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: #00e5ff;
+  border-radius: 50%;
+  box-shadow: 0 0 10px #00e5ff, 0 0 20px rgba(0, 229, 255, 0.3);
+  top: -3px;
+  left: 50%;
+  margin-left: -3px;
+}
+
+/* Center content */
+.landing-content {
+  position: relative;
+  z-index: 10;
+  text-align: center;
+  padding: 20px;
+}
+
+.landing-icon {
+  font-size: 4rem;
+  margin-bottom: 20px;
+  filter: drop-shadow(0 0 20px rgba(0, 229, 255, 0.4));
+  animation: float-icon 3s ease-in-out infinite;
+}
+
+@keyframes float-icon {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.landing-title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 2.4rem;
+  font-weight: 700;
+  color: #00e5ff;
+  margin: 0 0 8px;
+  letter-spacing: 2px;
+  text-shadow: 0 0 30px rgba(0, 229, 255, 0.3);
+}
+
+.landing-subtitle {
+  color: #888;
+  font-size: 0.95rem;
+  margin: 0 0 40px;
+  letter-spacing: 1px;
+}
+
+.landing-stats {
+  display: flex;
+  gap: 24px;
+  justify-content: center;
+  margin-bottom: 40px;
+  flex-wrap: wrap;
+}
+
+.landing-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.landing-stat-value {
+  font-size: 1.6rem;
+  font-weight: 700;
+  font-family: 'Courier New', monospace;
+  color: #00e5ff;
+  text-shadow: 0 0 12px rgba(0, 229, 255, 0.3);
+}
+
+.landing-stat-label {
+  font-size: 0.65rem;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* START button */
+.start-btn {
+  position: relative;
+  background: transparent;
+  border: 2px solid #00e5ff;
+  color: #00e5ff;
+  padding: 16px 60px;
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  border-radius: 50px;
+  cursor: pointer;
+  transition: all 0.4s ease;
+  overflow: hidden;
+  font-family: 'Outfit', sans-serif;
+}
+
+.start-btn::before {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%;
+  width: 100%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(0, 229, 255, 0.15), transparent);
+  transition: left 0.6s ease;
+}
+
+.start-btn:hover::before {
+  left: 100%;
+}
+
+.start-btn:hover {
+  background: rgba(0, 229, 255, 0.1);
+  box-shadow: 0 0 30px rgba(0, 229, 255, 0.4), 0 0 60px rgba(0, 229, 255, 0.1);
+  transform: scale(1.05);
+}
+
+.start-btn:active {
+  transform: scale(0.98);
+}
+
+/* Pulsing glow ring behind button */
+@keyframes btn-pulse {
+  0%, 100% { box-shadow: 0 0 20px rgba(0, 229, 255, 0.2); }
+  50% { box-shadow: 0 0 40px rgba(0, 229, 255, 0.4), 0 0 80px rgba(0, 229, 255, 0.1); }
+}
+
+.start-btn {
+  animation: btn-pulse 2.5s ease-in-out infinite;
+}
+
+.landing-version {
+  position: absolute;
+  bottom: 20px;
+  color: #333;
+  font-size: 0.7rem;
+  letter-spacing: 1px;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .landing-title {
+    font-size: 1.4rem;
+    letter-spacing: 1px;
+  }
+
+  .landing-subtitle {
+    font-size: 0.75rem;
+  }
+
+  .landing-icon {
+    font-size: 2.5rem;
+  }
+
+  .landing-stats {
+    gap: 14px;
+  }
+
+  .landing-stat-value {
+    font-size: 1.2rem;
+  }
+
+  .start-btn {
+    padding: 12px 40px;
+    font-size: 1rem;
+    letter-spacing: 3px;
+  }
+
+  .orbit-ring-1 { width: 200px; height: 200px; }
+  .orbit-ring-2 { width: 320px; height: 320px; }
+  .orbit-ring-3 { width: 440px; height: 440px; }
+}
