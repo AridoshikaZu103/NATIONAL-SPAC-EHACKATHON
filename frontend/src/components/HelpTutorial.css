@@ -136,6 +136,22 @@
   color: #00ff88;
 }
 
+.help-what {
+  color: #00e5ff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin: 16px 0 6px;
+  padding: 4px 0 4px 10px;
+  border-left: 3px solid rgba(0, 229, 255, 0.5);
+  font-family: monospace;
+}
+
+.help-what:first-child {
+  margin-top: 0;
+}
+
 .help-nav {
   display: flex;
   justify-content: space-between;
