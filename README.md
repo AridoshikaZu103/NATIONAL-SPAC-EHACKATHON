@@ -13,17 +13,20 @@ A full-stack real-time orbital simulation platform that tracks 6 satellites and 
 | **3D WebGL Globe** | Real Earth with day/night cycle, 6 orbit rings, satellite markers, 518 debris points, and threat visualization |
 | **Ground Track (Mercator)** | NASA Blue Marble Earth image with live day/night terminator overlay |
 | **COLA Engine** | Collision Avoidance — auto-fires evasion + recovery burns when TCA < 5 hours |
-| **Random Threat Simulation** | Spawn debris targeting any satellite (alpha-01 to alpha-06) with center-screen COLLISION WARNING alert |
+| **Random Threat Simulation** | Spawn debris targeting any satellite (alpha-01 to alpha-06) with 5-second countdown timer and center-screen COLLISION WARNING alert |
+| **Satellite Status** | SAFE / DIED status labels on 2D map based on fuel level |
 | **Live Telemetry** | Per-satellite altitude, velocity, lat/lon, inclination, and fuel monitoring |
 | **Conjunction Bullseye Plot** | SVG radar showing threat distance/angle relative to selected satellite |
 | **Proximity Operations** | Radar view of nearby objects with TCA countdown and color-coded risk levels |
 | **Maneuver Gantt Timeline** | Visual timeline of evasion and recovery burns with dynamic time windowing |
 | **Fleet Resource Dashboard** | Propellant bars, delta-V cost analysis, and mission budget tracking |
+| **40 Ground Stations** | Global coverage from NASA DSN, ESA ESTRACK, ISRO, JAXA, CNSA networks (CSV + SQL) |
 | **Interactive Tutorial** | 7-step guided walkthrough explaining every feature |
 | **Threat Alert System** | Center-screen pulsing collision warning with shake animation and ACKNOWLEDGE button |
 | **Toast Notifications** | Top-center notification system for all simulation events |
 | **Reports & Analysis** | Live mission summary with fleet status, CDM logs, and maneuver history |
 | **Responsive Design** | Works on desktop, tablet, and smartphone |
+| **Custom Satellite Favicon** | SVG satellite icon replacing default Vite favicon |
 
 ---
 
@@ -129,12 +132,19 @@ Frontend (React + Vite)          Backend (FastAPI + Python)
 git clone https://github.com/AridoshikaZu103/Orbital-Debris-Avoidance-Constellation-Management-System.git
 cd Orbital-Debris-Avoidance-Constellation-Management-System
 
+# One-command install + launch (recommended)
+.\install_Launch.ps1
+
+# Or manually:
 # Backend
 cd backend
 python -m venv .venv
 .\.venv\Scripts\activate
 pip install -r requirements.txt
 cp .env.example .env   # Add DATABASE_URL
+
+# Load ground stations (optional)
+python load_ground_stations.py
 
 # Frontend
 cd ../frontend
@@ -158,18 +168,22 @@ DATABASE_URL=postgresql://user:pass@host:5432/dbname
 ```
 NATIONAL_SPACE_HACKATHON/
 |-- backend/
-|   |-- main.py              # FastAPI app entry point
-|   |-- routes.py             # API routes + physics engine
-|   |-- state.py              # Global simulation state
-|   |-- database.py           # PostgreSQL connection (Neon)
-|   |-- seed.sql              # Database schema
-|   |-- requirements.txt      # Python dependencies
-|   |-- .env                  # Database credentials
+|   |-- main.py                    # FastAPI app entry point
+|   |-- routes.py                   # API routes + physics engine
+|   |-- state.py                    # Global simulation state
+|   |-- database.py                 # PostgreSQL connection (Neon)
+|   |-- seed.sql                    # Database schema
+|   |-- GROUND_STATIONS_DATA.csv    # 40 ground stations worldwide
+|   |-- load_ground_stations.py     # CSV -> PostgreSQL loader
+|   |-- requirements.txt            # Python dependencies
+|   |-- .env                        # Database credentials
 |
 |-- frontend/
 |   |-- src/
-|   |   |-- App.jsx           # Main dashboard + state management
-|   |   |-- App.css           # Global styles + responsive
+|   |   |-- App.jsx                 # Main dashboard + state management
+|   |   |-- App.css                 # Global styles + responsive
+|   |   |-- assets/
+|   |   |   |-- satellite.svg       # Custom satellite favicon
 |   |   |-- components/
 |   |   |   |-- LandingPage.jsx/css    # Splash screen + CSS satellite
 |   |   |   |-- EarthGlobe.jsx         # 3D WebGL globe (Three.js)
@@ -182,7 +196,8 @@ NATIONAL_SPACE_HACKATHON/
 |   |-- index.html
 |   |-- vite.config.js
 |
-|-- start.ps1                 # PowerShell launcher (2 terminals)
+|-- install_Launch.ps1             # One-command install + launch
+|-- start.ps1                      # PowerShell launcher (2 terminals)
 |-- vercel.json               # Vercel deployment config
 |-- .gitignore
 |-- README.md
