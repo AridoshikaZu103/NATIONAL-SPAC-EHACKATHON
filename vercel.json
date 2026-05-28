@@ -1,14 +1,14 @@
 {
-  "experimentalServices": {
-    "frontend": {
-      "root": "frontend",
-      "framework": "vite",
-      "routePrefix": "/"
-    },
-    "backend": {
-      "root": "backend",
-      "framework": "fastapi",
-      "routePrefix": "/api"
+  "version": 2,
+  "buildCommand": "cd frontend && npm install && npm run build",
+  "outputDirectory": "frontend/dist",
+  "functions": {
+    "api/index.py": {
+      "runtime": "@vercel/python@4.3.1",
+      "maxDuration": 60
     }
-  }
+  },
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/index.py" }
+  ]
 }
