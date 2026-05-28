@@ -778,6 +778,46 @@ body {
   border: 1px solid #444;
 }
 
-/* End of App.css */
+/* End of base App.css — component CSS now in individual files */
+
+/* Satellite Selector Tabs */
+.sat-selector {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.sat-tab {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(0, 229, 255, 0.15);
+  color: #888;
+  padding: 4px 0;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-family: monospace;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.sat-tab:hover {
+  border-color: rgba(0, 229, 255, 0.5);
+  color: #ccc;
+}
+
+.sat-tab-active {
+  background: rgba(0, 229, 255, 0.15);
+  border-color: #00e5ff;
+  color: #00e5ff;
+  box-shadow: 0 0 8px rgba(0, 229, 255, 0.2);
+}
+
+/* Proximity panel in sidebar */
+.sidebar-proximity {
+  padding: 0 !important;
+  overflow: hidden;
+  min-height: 200px;
+}
+
 
 

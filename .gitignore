@@ -7,6 +7,7 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Dependencies
 node_modules
 dist
 dist-ssr
@@ -34,3 +35,13 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+
+# Vercel
+.vercel/
+
+# Build artifacts
+frontend/dist/
+
+# IDE / AI
+.gemini/
+.cursor/
