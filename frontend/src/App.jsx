@@ -17,7 +17,7 @@ export default function App() {
   const [showLanding, setShowLanding] = useState(true);
 
   // Sim controls
-  const [isPaused, setIsPaused] = useState(false);
+  const [isPaused, setIsPaused] = useState(true); // Start paused — user clicks PLAY first
   const [colaWarning, setColaWarning] = useState(false);
 
   // Backend state
@@ -137,13 +137,14 @@ export default function App() {
   const togglePause = () => {
     const next = !isPaused;
     setIsPaused(next);
-    if (next && isAutoMode) setIsAutoMode(false);
-    addToast(next ? 'warning' : 'info', next ? 'PAUSED' : 'RESUMED', next ? 'Simulation paused. Auto mode off.' : 'Live polling resumed.');
+    // Don't kill AUTO — they work independently
+    addToast(next ? 'warning' : 'info', next ? 'PAUSED' : 'RESUMED', next ? 'Polling paused.' : 'Live polling resumed.');
   };
 
   const toggleAuto = () => {
     const next = !isAutoMode;
     setIsAutoMode(next);
+    // Auto ON also resumes polling if paused
     if (next && isPaused) setIsPaused(false);
     addToast('info', next ? 'AUTO ON' : 'AUTO OFF', next ? 'Auto-stepping every ' + (autoSpeed/1000) + 's' : 'Manual mode.');
   };
