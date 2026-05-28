@@ -819,5 +819,265 @@ body {
   min-height: 200px;
 }
 
+/* Report Button */
+.control-btn.report-btn {
+  border-color: #9966ff;
+  color: #9966ff;
+}
+.control-btn.report-btn:hover {
+  background: rgba(153, 102, 255, 0.2);
+  box-shadow: 0 0 20px rgba(153, 102, 255, 0.4);
+}
 
+/* ════════════════════════════════════════════
+   MOBILE RESPONSIVE — Smartphone (< 768px)
+   ════════════════════════════════════════════ */
 
+@media (max-width: 768px) {
+  .app-container {
+    padding: 10px;
+  }
+
+  .max-width-container {
+    max-width: 100%;
+  }
+
+  /* Header stacks vertically */
+  .header-bar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  .main-title {
+    font-size: 1.2rem;
+    letter-spacing: 0;
+  }
+
+  .subtitle {
+    font-size: 0.7rem;
+  }
+
+  /* Buttons wrap and shrink */
+  .status-badges {
+    flex-wrap: wrap;
+    gap: 6px;
+    width: 100%;
+  }
+
+  .control-btn {
+    padding: 6px 12px;
+    font-size: 0.65rem;
+    border-radius: 16px;
+    letter-spacing: 0.5px;
+    flex: 1 1 auto;
+    text-align: center;
+    min-width: 0;
+  }
+
+  /* Speed controls stack */
+  .speed-controls {
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px 10px;
+    margin-bottom: 10px;
+    font-size: 0.7rem;
+  }
+
+  .speed-group {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .speed-group input[type="range"] {
+    flex-grow: 1;
+    width: auto;
+  }
+
+  .sim-clock {
+    flex-direction: row;
+    gap: 6px;
+  }
+
+  .clock-label {
+    font-size: 0.55rem;
+  }
+
+  .clock-value {
+    font-size: 0.75rem;
+  }
+
+  /* Main layout stacks vertically */
+  .main-layout {
+    grid-template-columns: 1fr !important;
+    gap: 12px;
+  }
+
+  .globe-panel {
+    height: 300px;
+    min-height: 250px;
+  }
+
+  .globe-container {
+    height: 220px;
+    min-height: 200px;
+  }
+
+  .panel-header h2 {
+    font-size: 0.85rem;
+  }
+
+  .hint-badge {
+    font-size: 0.55rem;
+    padding: 2px 6px;
+  }
+
+  .legend-overlay {
+    font-size: 0.6rem;
+    gap: 4px;
+    padding: 6px 8px;
+  }
+
+  .symbol { font-size: 0.8rem; }
+
+  /* Sidebar also full width */
+  .sidebar {
+    gap: 10px;
+  }
+
+  .panel-title {
+    font-size: 0.8rem;
+  }
+
+  .glass-panel {
+    padding: 12px;
+    border-radius: 12px;
+  }
+
+  .sat-selector {
+    gap: 3px;
+    margin-bottom: 8px;
+  }
+
+  .sat-tab {
+    padding: 3px 0;
+    font-size: 0.65rem;
+    border-radius: 4px;
+  }
+
+  .telemetry-row {
+    padding: 8px 10px;
+    border-radius: 8px;
+  }
+
+  .telemetry-label { font-size: 0.75rem; }
+  .telemetry-value { font-size: 0.78rem; }
+
+  .sidebar-bullseye {
+    min-height: 200px;
+  }
+
+  .sidebar-proximity {
+    min-height: 180px;
+  }
+
+  /* Modules stack */
+  .modules-layout {
+    grid-template-columns: 1fr !important;
+    gap: 10px;
+    margin-top: 10px;
+  }
+
+  .module-panel {
+    height: 280px;
+  }
+
+  .module-wide {
+    grid-column: 1 !important;
+  }
+
+  .resource-dash-container {
+    flex-direction: column;
+    gap: 10px;
+    min-height: auto;
+  }
+
+  .resource-panel {
+    padding: 10px;
+  }
+
+  .fuel-bar-track {
+    height: 80px;
+  }
+
+  /* Footer */
+  .footer-bar {
+    flex-direction: column;
+    text-align: center;
+    padding: 8px;
+    font-size: 0.65rem;
+  }
+
+  /* COLA Banner */
+  .cola-banner {
+    font-size: 0.7rem;
+    padding: 8px;
+  }
+
+  /* Floating help button — smaller on mobile */
+  .help-fab {
+    width: 40px;
+    height: 40px;
+    font-size: 1.1rem;
+    bottom: 14px;
+    right: 14px;
+  }
+
+  /* Toast on mobile — full width */
+  .toast-container {
+    top: auto;
+    bottom: 60px;
+    right: 10px;
+    left: 10px;
+    max-width: 100%;
+  }
+
+  .toast {
+    font-size: 0.72rem;
+    padding: 10px 14px;
+  }
+}
+
+/* Tablet (768px - 1024px) */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .app-container {
+    padding: 14px;
+  }
+
+  .main-title {
+    font-size: 1.5rem;
+  }
+
+  .status-badges {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .control-btn {
+    padding: 6px 14px;
+    font-size: 0.75rem;
+  }
+
+  .main-layout {
+    grid-template-columns: 1fr !important;
+  }
+
+  .modules-layout {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .resource-dash-container {
+    flex-direction: column;
+  }
+}
