@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import EarthGlobe from './components/EarthGlobe';
 import GroundTrackMap from './components/GroundTrackMap';
@@ -6,6 +6,7 @@ import BullseyePlot from './components/BullseyePlot';
 import ResourceDash from './components/ResourceDash';
 import ManeuverGantt from './components/ManeuverGantt';
 import ProximityView from './components/ProximityView';
+import { HelpTutorial, ToastContainer, createToast, ReportModal } from './components/HelpTutorial';
 import './App.css';
 
 export default function App() {
@@ -29,6 +30,19 @@ export default function App() {
   const [isAutoMode, setIsAutoMode] = useState(false);
   const [stepSize, setStepSize] = useState(3600);
   const [autoSpeed, setAutoSpeed] = useState(2000);
+
+  // UI state
+  const [showHelp, setShowHelp] = useState(false);
+  const [showReport, setShowReport] = useState(false);
+  const [toasts, setToasts] = useState([]);
+  const [prevThreats, setPrevThreats] = useState(0);
+  const [prevManeuvers, setPrevManeuvers] = useState(0);
+
+  const addToast = useCallback((type, title, message) => {
+    const t = createToast(type, title, message);
+    setToasts(prev => [...prev.slice(-4), t]);
+    setTimeout(() => setToasts(prev => prev.filter(x => x.id !== t.id)), 5000);
+  }, []);
 
   // Fetch Snapshot — 500ms for live feel
   useEffect(() => {
@@ -55,14 +69,30 @@ export default function App() {
     return () => clearInterval(interval);
   }, [isPaused]);
 
+  // Toast notifications for threat/maneuver changes
+  useEffect(() => {
+    if (threats.length > prevThreats) {
+      addToast('danger', 'THREAT DETECTED', 'New debris on collision course with ' + (threats[threats.length - 1]?.targetSatId || 'satellite'));
+    } else if (threats.length < prevThreats && prevThreats > 0) {
+      addToast('success', 'THREAT CLEARED', 'Evasion maneuver successful. Satellite safe.');
+    }
+    setPrevThreats(threats.length);
+  }, [threats.length]);
+
+  useEffect(() => {
+    const currentEvasions = timeline.filter(e => e.type === 'EVASION').length;
+    if (currentEvasions > prevManeuvers) {
+      addToast('warning', 'EVASION BURN', 'COLA engine fired. Fuel consumed: 2.5 kg');
+    }
+    setPrevManeuvers(currentEvasions);
+  }, [timeline.length]);
+
   // Auto Mode Loop
   useEffect(() => {
     let interval;
     if (isAutoMode && !isPaused) {
       interval = setInterval(async () => {
-        try {
-          await axios.post('/api/simulate/step', { step_seconds: stepSize });
-        } catch (e) { console.error(e); }
+        try { await axios.post('/api/simulate/step', { step_seconds: stepSize }); } catch (e) { console.error(e); }
       }, autoSpeed);
     }
     return () => clearInterval(interval);
@@ -70,7 +100,8 @@ export default function App() {
 
   const handleStep = async () => {
     try {
-      await axios.post('/api/simulate/step', { step_seconds: stepSize });
+      const res = await axios.post('/api/simulate/step', { step_seconds: stepSize });
+      addToast('info', 'STEP COMPLETE', 'Advanced ' + (stepSize >= 3600 ? (stepSize/3600) + 'hr' : stepSize + 's') + '. Maneuvers: ' + (res.data.maneuvers_executed || 0));
     } catch (e) { console.error(e); }
   };
 
@@ -90,6 +121,7 @@ export default function App() {
 
   const handleTelemetryUpdate = () => {};
   const handleCollisionWarning = (val) => setColaWarning(val);
+  const dismissToast = (id) => setToasts(prev => prev.filter(t => t.id !== id));
 
   const formatTime = (s) => {
     const h = Math.floor(s / 3600);
@@ -97,18 +129,29 @@ export default function App() {
     return h + 'h ' + m + 'm';
   };
 
-  // Get current satellite data for telemetry panel
   const currentSat = satellites[selectedSat] || { lat: 0, lon: 0, alt: 550, velocity: 7.58, inclination: 51.6, fuel_kg: 50 };
 
   return (
     <div className="app-container">
       <div className="max-width-container">
 
+        {/* Toast Notifications */}
+        <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+
+        {/* Help Tutorial */}
+        <HelpTutorial isOpen={showHelp} onClose={() => setShowHelp(false)} />
+
+        {/* Report Modal */}
+        <ReportModal isOpen={showReport} onClose={() => setShowReport(false)} satellites={satellites} timeline={timeline} threats={threats} simTime={simTime} />
+
+        {/* Floating Help Button */}
+        <button className="help-fab" onClick={() => setShowHelp(true)} title="How to use">?</button>
+
         {/* Header */}
         <div className="header-bar">
           <div>
             <h1 className="main-title">ORBITAL INSIGHT SSA</h1>
-            <p className="subtitle">Space Situational Awareness &bull; Autonomous Constellation Manager</p>
+            <p className="subtitle">Autonomous Constellation Manager</p>
           </div>
           <div className="status-badges">
             <button className={'control-btn' + (isAutoMode ? ' auto-active' : '')} onClick={() => setIsAutoMode(!isAutoMode)}>
@@ -118,6 +161,7 @@ export default function App() {
               STEP +{stepSize >= 3600 ? (stepSize / 3600) + 'HR' : stepSize + 'S'}
             </button>
             <button className="control-btn threat-btn" onClick={simulateThreat}>SPAWN THREAT</button>
+            <button className="control-btn report-btn" onClick={() => setShowReport(true)}>REPORT</button>
             <button className={'control-btn ' + (isPaused ? 'paused' : 'playing')} onClick={() => setIsPaused(!isPaused)}>
               {isPaused ? 'PLAY' : 'PAUSE'}
             </button>
@@ -153,10 +197,6 @@ export default function App() {
             <span className="clock-label">MANEUVERS</span>
             <span className="clock-value">{maneuverCount}</span>
           </div>
-          <div className="sim-clock">
-            <span className="clock-label">CDMs</span>
-            <span className="clock-value" style={{ color: '#ffaa00' }}>{timeline.filter(e => e.type === 'EVASION').length}</span>
-          </div>
         </div>
 
         {/* COLA Banner */}
@@ -171,7 +211,7 @@ export default function App() {
           <div className="globe-panel glass-panel">
             <div className="panel-header">
               <h2>LIVE 3D ORBITAL VIEW</h2>
-              <span className="hint-badge">Drag to rotate &bull; Scroll to zoom</span>
+              <span className="hint-badge">Drag to rotate</span>
             </div>
             <div className="legend-overlay">
               <div className="legend-item"><span className="symbol cyan-diamond">&#9670;</span> Satellites</div>
@@ -180,23 +220,14 @@ export default function App() {
               <div className="legend-item"><span className="symbol green-triangle">&#9650;</span> Ground Stn</div>
             </div>
             <div className="globe-container">
-              <EarthGlobe
-                isPaused={isPaused}
-                satellites={satellites}
-                debris={debris}
-                threats={threats}
-                onTelemetryUpdate={handleTelemetryUpdate}
-                onCollisionWarning={handleCollisionWarning}
-              />
+              <EarthGlobe isPaused={isPaused} satellites={satellites} debris={debris} threats={threats} onTelemetryUpdate={handleTelemetryUpdate} onCollisionWarning={handleCollisionWarning} />
             </div>
           </div>
 
           {/* Right Sidebar */}
           <div className="sidebar">
-            {/* Satellite Selector + Telemetry */}
             <div className="glass-panel">
               <h2 className="panel-title">LIVE TELEMETRY</h2>
-              {/* Satellite selector tabs */}
               <div className="sat-selector">
                 {[0,1,2,3,4,5].map(i => (
                   <button key={i} className={'sat-tab' + (selectedSat === i ? ' sat-tab-active' : '')} onClick={() => setSelectedSat(i)}>
@@ -214,7 +245,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* Engine Status */}
             <div className="glass-panel">
               <h2 className="panel-title">ENGINE STATUS</h2>
               <div className="info-list text-small">
@@ -226,12 +256,10 @@ export default function App() {
               </div>
             </div>
 
-            {/* Bullseye */}
             <div className="glass-panel sidebar-bullseye">
               <BullseyePlot threats={threats} />
             </div>
 
-            {/* Proximity Operations */}
             <div className="glass-panel sidebar-proximity">
               <ProximityView threats={threats} selectedSat={selectedSat} />
             </div>
@@ -252,7 +280,7 @@ export default function App() {
         </div>
 
         <div className="footer-bar">
-          <span>Orbital Insight SSA v1.0 &bull; Autonomous Constellation Manager</span>
+          <span>Orbital Insight SSA v1.0</span>
           <span>{simTimestamp || 'Connecting...'}</span>
         </div>
       </div>
