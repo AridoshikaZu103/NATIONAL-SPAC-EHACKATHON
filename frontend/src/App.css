@@ -380,6 +380,21 @@ body {
   background: rgba(255, 51, 102, 0.2);
   box-shadow: 0 0 20px rgba(255, 51, 102, 0.4);
 }
+.control-btn.threat-btn.spawning {
+  background: rgba(255, 51, 102, 0.15);
+  border-color: #ff3366;
+  color: #ff3366;
+  animation: spawn-pulse 1s ease-in-out infinite;
+  cursor: not-allowed;
+}
+@keyframes spawn-pulse {
+  0%, 100% { box-shadow: 0 0 10px rgba(255, 51, 102, 0.3); }
+  50% { box-shadow: 0 0 25px rgba(255, 51, 102, 0.6); }
+}
+.control-btn.playing {
+  border-color: #00ff88;
+  color: #00ff88;
+}
 
 /* Speed Controls Bar */
 .speed-controls {
