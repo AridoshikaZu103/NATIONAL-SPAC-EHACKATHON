@@ -7,8 +7,6 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-import uvicorn
 from dotenv import load_dotenv
 
 from api.routes import router
@@ -19,10 +17,16 @@ load_dotenv()
 
 @asynccontextmanager
 async def lifespan(app):
-    """Connect to Neon PostgreSQL on startup, disconnect on shutdown"""
-    await Database.connect()
+    """Connect to PostgreSQL on startup, disconnect on shutdown"""
+    try:
+        await Database.connect()
+    except Exception as e:
+        print(f"Database connection warning: {e}")
     yield
-    await Database.disconnect()
+    try:
+        await Database.disconnect()
+    except Exception:
+        pass
 
 app = FastAPI(
     title="Orbital Insight API",
@@ -31,7 +35,7 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Enable CORS for frontend (Vercel + local dev)
+# Enable CORS for frontend (separate Vercel project + local dev)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -43,20 +47,16 @@ app.add_middleware(
 # Include orbital API routes
 app.include_router(router)
 
+@app.get("/")
+async def root():
+    return {"status": "healthy", "service": "Orbital Insight API", "version": "1.0.0"}
+
 @app.get("/api/health")
 async def health():
     return {"status": "healthy", "version": "1.0.0"}
 
-# Serve Frontend Static Files for Docker Deployment
-# Must be added AFTER API routes to avoid shadowing
-frontend_dist = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
-if os.path.exists(frontend_dist):
-    app.mount("/", StaticFiles(directory=frontend_dist, html=True), name="frontend")
-else:
-    @app.get("/")
-    async def root():
-        return {"message": "Orbital Insight API v1.0.0 (Frontend not built)"}
-
+# Local dev only
 if __name__ == "__main__":
+    import uvicorn
     port = int(os.getenv("BACKEND_PORT", 8000))
     uvicorn.run(app, host="0.0.0.0", port=port)
