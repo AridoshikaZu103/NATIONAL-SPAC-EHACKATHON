@@ -7,7 +7,12 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
 from dotenv import load_dotenv
+
+from api.routes import router
+from database import Database
 
 # Load environment variables
 load_dotenv()
@@ -16,13 +21,11 @@ load_dotenv()
 async def lifespan(app):
     """Connect to PostgreSQL on startup, disconnect on shutdown"""
     try:
-        from database import Database
         await Database.connect()
     except Exception as e:
         print(f"DB connect warning: {e}")
     yield
     try:
-        from database import Database
         await Database.disconnect()
     except Exception:
         pass
@@ -34,21 +37,22 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Enable CORS
+# CORS — must allow the frontend Vercel domain
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "*",
+        "https://orbital-debris-avoidance-constellat.vercel.app",
+        "http://localhost:5173",
+        "http://localhost:3000",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Import and include routes
-try:
-    from api.routes import router
-    app.include_router(router)
-except Exception as e:
-    print(f"Route import error: {e}")
+# Include orbital API routes (no try/except — let it crash loudly if broken)
+app.include_router(router)
 
 @app.get("/")
 async def root():
