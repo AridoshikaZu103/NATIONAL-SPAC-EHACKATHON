@@ -1,4 +1,10 @@
+"""
+Database module for Orbital Insight SSA.
+Connects to Neon PostgreSQL. Seeds 40 ground stations from CSV on startup.
+All tables: telemetry, maneuver_events, cdm_log, operations_log, ground_stations
+"""
 import os
+import csv
 import asyncpg
 from dotenv import load_dotenv
 
@@ -6,14 +12,6 @@ load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-GROUND_STATIONS_DATA = [
-    ("IIT Delhi", 28.54, 77.19, "New Delhi, India", 2000),
-    ("Svalbard", 78.22, 15.62, "Svalbard, Norway", 2500),
-    ("Goldstone", 35.42, -116.89, "California, USA", 2200),
-    ("Punta Arenas", -53.15, -70.90, "Punta Arenas, Chile", 2000),
-    ("ISTRAC", 13.03, 77.51, "Bangalore, India", 2000),
-    ("McMurdo", -77.84, 166.66, "McMurdo, Antarctica", 2500),
-]
 
 class Database:
     pool = None
@@ -79,10 +77,13 @@ class Database:
                 CREATE TABLE IF NOT EXISTS ground_stations (
                     id SERIAL PRIMARY KEY,
                     station_name VARCHAR(100) UNIQUE,
+                    country VARCHAR(60) DEFAULT '',
                     latitude FLOAT,
                     longitude FLOAT,
                     location VARCHAR(100),
                     comm_range_km FLOAT DEFAULT 2000,
+                    frequency_ghz FLOAT DEFAULT 8.2,
+                    antenna_diameter_m FLOAT DEFAULT 10,
                     status VARCHAR(20) DEFAULT 'ACTIVE'
                 );
             ''')
@@ -90,17 +91,38 @@ class Database:
 
     @classmethod
     async def seed_ground_stations(cls):
+        """Load 40 ground stations from GROUND_STATIONS_DATA.csv into the database."""
         if not cls.pool:
             return
         try:
+            csv_path = os.path.join(os.path.dirname(__file__), "GROUND_STATIONS_DATA.csv")
+            if not os.path.exists(csv_path):
+                print("GROUND_STATIONS_DATA.csv not found. Skipping seed.")
+                return
+
             async with cls.pool.acquire() as conn:
-                for name, lat, lon, loc, rng in GROUND_STATIONS_DATA:
-                    await conn.execute('''
-                        INSERT INTO ground_stations (station_name, latitude, longitude, location, comm_range_km)
-                        VALUES ($1, $2, $3, $4, $5)
-                        ON CONFLICT (station_name) DO NOTHING
-                    ''', name, lat, lon, loc, float(rng))
-                print("Ground stations seeded.")
+                count = 0
+                with open(csv_path, "r", encoding="utf-8") as f:
+                    reader = csv.DictReader(f)
+                    for row in reader:
+                        await conn.execute('''
+                            INSERT INTO ground_stations
+                                (station_name, country, latitude, longitude, location, comm_range_km, frequency_ghz, antenna_diameter_m, status)
+                            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                            ON CONFLICT (station_name) DO NOTHING
+                        ''',
+                            row["name"],
+                            row["country"],
+                            float(row["latitude"]),
+                            float(row["longitude"]),
+                            row["country"],  # use country as location
+                            2000.0,           # default comm range
+                            float(row["frequency_ghz"]),
+                            float(row["antenna_diameter_m"]),
+                            row["status"],
+                        )
+                        count += 1
+                print(f"Ground stations seeded ({count} stations).")
         except Exception as e:
             print(f"Seed error: {e}")
 
@@ -108,6 +130,8 @@ class Database:
     async def disconnect(cls):
         if cls.pool:
             await cls.pool.close()
+
+    # ---- Logging Methods ----
 
     @classmethod
     async def log_telemetry(cls, sat_id, lat, lon, alt, fuel_kg):
@@ -163,11 +187,22 @@ class Database:
 
     @classmethod
     async def get_ground_stations(cls):
+        """Fetch all ground stations from the database."""
         if not cls.pool:
-            return GROUND_STATIONS_DATA
+            # Fallback: return basic data if no DB connection
+            return [
+                {"station_name": "IIT Delhi", "latitude": 28.54, "longitude": 77.19, "country": "India", "status": "ACTIVE"},
+                {"station_name": "Svalbard", "latitude": 78.22, "longitude": 15.62, "country": "Norway", "status": "ACTIVE"},
+                {"station_name": "Goldstone", "latitude": 35.42, "longitude": -116.89, "country": "USA", "status": "ACTIVE"},
+                {"station_name": "Punta Arenas", "latitude": -53.15, "longitude": -70.90, "country": "Chile", "status": "ACTIVE"},
+                {"station_name": "ISTRAC", "latitude": 13.03, "longitude": 77.51, "country": "India", "status": "ACTIVE"},
+                {"station_name": "McMurdo", "latitude": -77.84, "longitude": 166.66, "country": "Antarctica", "status": "ACTIVE"},
+            ]
         try:
             async with cls.pool.acquire() as conn:
-                rows = await conn.fetch('SELECT station_name, latitude, longitude, location, comm_range_km, status FROM ground_stations')
+                rows = await conn.fetch(
+                    'SELECT station_name, country, latitude, longitude, location, comm_range_km, frequency_ghz, antenna_diameter_m, status FROM ground_stations ORDER BY station_name'
+                )
                 return [dict(r) for r in rows]
         except Exception as e:
             print(f"DB query error: {e}")
