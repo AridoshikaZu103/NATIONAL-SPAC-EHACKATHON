@@ -4,38 +4,20 @@ import os
 # Ensure backend directory is on the Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
-from api.routes import router
-from database import Database
-
 # Load environment variables
 load_dotenv()
-
-@asynccontextmanager
-async def lifespan(app):
-    """Connect to PostgreSQL on startup, disconnect on shutdown"""
-    try:
-        await Database.connect()
-    except Exception as e:
-        print(f"Database connection warning: {e}")
-    yield
-    try:
-        await Database.disconnect()
-    except Exception:
-        pass
 
 app = FastAPI(
     title="Orbital Insight API",
     description="Space Situational Awareness Backend",
     version="1.0.0",
-    lifespan=lifespan
 )
 
-# Enable CORS for frontend (separate Vercel project + local dev)
+# Enable CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -44,8 +26,29 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include orbital API routes
-app.include_router(router)
+# Database connection on startup
+@app.on_event("startup")
+async def startup():
+    try:
+        from database import Database
+        await Database.connect()
+    except Exception as e:
+        print(f"DB connect warning: {e}")
+
+@app.on_event("shutdown")
+async def shutdown():
+    try:
+        from database import Database
+        await Database.disconnect()
+    except Exception:
+        pass
+
+# Import and include routes
+try:
+    from api.routes import router
+    app.include_router(router)
+except Exception as e:
+    print(f"Route import error: {e}")
 
 @app.get("/")
 async def root():
@@ -58,5 +61,5 @@ async def health():
 # Local dev only
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.getenv("BACKEND_PORT", 8000))
+    port = int(os.getenv("PORT", os.getenv("BACKEND_PORT", 8000)))
     uvicorn.run(app, host="0.0.0.0", port=port)
