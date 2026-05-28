@@ -1,4 +1,4 @@
-# Project AETHER — Autonomous Constellation Manager
+# Orbital Debris Avoidance & Constellation Management System
 
 Advanced Autonomous Constellation Manager (ACM) for the **National Space Hackathon 2026**. Features a high-performance Python/FastAPI backend with Runge-Kutta orbital propagation and a React/Three.js dashboard for real-time Space Situational Awareness (SSA).
 
