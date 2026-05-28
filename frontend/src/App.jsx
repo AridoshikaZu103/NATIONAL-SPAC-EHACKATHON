@@ -257,7 +257,7 @@ export default function App() {
             </div>
 
             <div className="glass-panel sidebar-bullseye">
-              <BullseyePlot threats={threats} />
+              <BullseyePlot threats={threats} selectedSat={selectedSat} satellites={satellites} />
             </div>
 
             <div className="glass-panel sidebar-proximity">
