@@ -2,10 +2,23 @@ import React from 'react';
 import './ManeuverGantt.css';
 
 export default function ManeuverGantt({ timeline = [], currentTime = 0 }) {
-  // Show window: CurrentTime - 1hr to CurrentTime + 5hr
-  const windowStart = Math.max(0, currentTime - 3600);
-  const windowEnd = windowStart + (6 * 3600); // 6 hours total
-  const windowDuration = windowEnd - windowStart;
+  // Dynamic window: find the actual range of events, or default to currentTime window
+  let minTime = currentTime - 3600;
+  let maxTime = currentTime + 5 * 3600;
+
+  if (timeline.length > 0) {
+    const allStarts = timeline.map(e => e.timeStart);
+    const allEnds = timeline.map(e => e.timeEnd);
+    const evMin = Math.min(...allStarts);
+    const evMax = Math.max(...allEnds);
+    // Expand window to include all events
+    minTime = Math.min(minTime, evMin - 1800);
+    maxTime = Math.max(maxTime, evMax + 1800);
+  }
+
+  const windowStart = Math.max(0, minTime);
+  const windowEnd = maxTime;
+  const windowDuration = windowEnd - windowStart || 1;
 
   const rows = ['alpha-01', 'alpha-02', 'alpha-03', 'alpha-04', 'alpha-05', 'alpha-06'];
 
@@ -18,11 +31,15 @@ export default function ManeuverGantt({ timeline = [], currentTime = 0 }) {
     if (end < windowStart || start > windowEnd) return 0;
     const s = Math.max(windowStart, start);
     const e = Math.min(windowEnd, end);
-    return ((e - s) / windowDuration) * 100;
+    return Math.max(1.5, ((e - s) / windowDuration) * 100); // Min 1.5% visible
   };
 
-  // Count events per row for status indicator
   const hasEvents = rows.map(satId => timeline.some(e => e.satId === satId));
+
+  // Generate time labels based on window
+  const hourSpan = Math.max(1, Math.ceil((windowEnd - windowStart) / 3600));
+  const labelCount = Math.min(hourSpan + 1, 8);
+  const labelStep = (windowEnd - windowStart) / (labelCount - 1);
 
   return (
     <div className="gantt-container">
@@ -32,7 +49,6 @@ export default function ManeuverGantt({ timeline = [], currentTime = 0 }) {
       </div>
 
       <div className="gantt-body">
-        {/* Y Axis */}
         <div className="gantt-y-axis">
           {rows.map((sat, i) => (
             <div key={sat} className="gantt-y-label">
@@ -42,19 +58,21 @@ export default function ManeuverGantt({ timeline = [], currentTime = 0 }) {
           ))}
         </div>
 
-        {/* Timeline Grid */}
         <div className="gantt-grid">
-          {/* Vertical time guides */}
-          {[0, 1, 2, 3, 4, 5, 6].map(h => (
-            <div key={h} className="gantt-time-guide" style={{ left: (h / 6 * 100) + '%' }}>
-              <span className="gantt-time-label">T+{Math.round((windowStart + h * 3600) / 3600)}h</span>
-            </div>
-          ))}
+          {/* Time guides */}
+          {Array.from({ length: labelCount }, (_, h) => {
+            const t = windowStart + h * labelStep;
+            return (
+              <div key={h} className="gantt-time-guide" style={{ left: (h / (labelCount - 1) * 100) + '%' }}>
+                <span className="gantt-time-label">T+{Math.round(t / 3600)}h</span>
+              </div>
+            );
+          })}
 
-          {/* Current time indicator */}
+          {/* NOW line */}
           <div className="gantt-now-line" style={{ left: getLeftPct(currentTime) + '%' }} />
 
-          {/* Rows with events */}
+          {/* Event rows */}
           <div className="gantt-rows">
             {rows.map(satId => {
               const satEvents = timeline.filter(e => e.satId === satId);
@@ -70,14 +88,9 @@ export default function ManeuverGantt({ timeline = [], currentTime = 0 }) {
 
                     return (
                       <React.Fragment key={ev.id}>
-                        <div className="gantt-event" style={{
-                          left: left + '%',
-                          width: width + '%',
-                          background: color,
-                        }}>
+                        <div className="gantt-event" style={{ left: left + '%', width: width + '%', background: color }} title={ev.type + ': ' + ev.id}>
                           {width > 8 ? ev.type : ''}
                         </div>
-                        {/* 600s Cooldown */}
                         {ev.timeEnd < windowEnd && (
                           <div className="gantt-cooldown" style={{
                             left: getLeftPct(ev.timeEnd) + '%',
@@ -92,16 +105,12 @@ export default function ManeuverGantt({ timeline = [], currentTime = 0 }) {
             })}
           </div>
 
-          {/* Empty state */}
           {timeline.length === 0 && (
-            <div className="gantt-empty">
-              NO MANEUVERS SCHEDULED — SPAWN A THREAT TO TRIGGER COLA
-            </div>
+            <div className="gantt-empty">NO MANEUVERS SCHEDULED</div>
           )}
         </div>
       </div>
 
-      {/* Legend */}
       <div className="gantt-legend">
         <div className="gantt-legend-item"><div className="gantt-legend-box" style={{ background: '#ff3366' }}></div>EVASION</div>
         <div className="gantt-legend-item"><div className="gantt-legend-box" style={{ background: '#00e5ff' }}></div>RECOVERY</div>
