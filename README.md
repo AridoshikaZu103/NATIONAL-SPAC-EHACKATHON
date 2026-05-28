@@ -1,80 +1,74 @@
-# Orbital Insight - SSA Dashboard
+# Project AETHER - Autonomous Constellation Manager
 
-A fully responsive, 3D WebGL dashboard for Space Situational Awareness (SSA), demonstrating collision avoidance algorithms (COLA) and constellation tracking. 
+An advanced Autonomous Constellation Manager (ACM) built for the **National Space Hackathon 2026**. This system features a high-performance Python/FastAPI backend for numerical orbital propagation and a stunning React/Three.js frontend dashboard to provide real-time situational awareness (SSA).
 
-## Features
-- **Live 3D Globe Simulation**: Built with React and Three.js.
-- **Walker Delta Constellation**: Tracks 6 active satellites orbiting in a uniform pattern.
-- **Debris Belt Tracking**: Simulates 518 debris objects orbiting Earth.
-- **Collision Avoidance (COLA)**: Triggers an alert when threat debris gets too close to an active satellite.
-- **Play/Pause Engine**: Allows pausing the simulation time without freezing the viewport navigation.
-- **Responsive Design**: Adapts cleanly from desktop displays to mobile phones without overlapping panels.
+## 🚀 Key Features
 
----
+### 1. High-Fidelity 3D WebGL Globe
+- Built using **Three.js**, porting photorealistic textures (Bump maps, Specular reflections, Atmospheric clouds).
+- Dynamically maps ECI (Earth-Centered Inertial) state vectors into 3D Cartesian space.
+- Plots **6 Active Satellites (Cyan)**, **518 Debris Fragments (Blue)**, and active **Threats (Red)**.
+- Renders the 6 global Ground Station communication hubs as **Green Triangles**.
 
-## Visual Legend
+### 2. Operational Flight Dynamics Dashboard
+- **Ground Track Map (Mercator)**: Tracks historical paths, 90-minute predictive trajectories, and overlays the dynamic "Terminator Line" shadow.
+- **Conjunction Bullseye Plot**: A custom polar scatter chart centering the target satellite, mapping Time to Closest Approach (TCA) as radial distance, and dynamically color-coding risk (Safe/Warning/Critical).
+- **Resource Heatmaps**: Features live fleet propellant gauges and a **Δv Cost Analysis** line chart comparing "Fuel Consumed vs. Collisions Avoided".
+- **Maneuver Timeline (Gantt)**: Chronologically schedules Evasion and Recovery burns across the constellation, including the mandatory 600-second thermal cooldowns.
+- **Simulation Control Panel**: Features an "AUTO ON" loop to advance the simulation clock iteratively, and a "SPAWN THREAT" trigger for testing COLA behavior.
 
-| Symbol | Color | Representation | Description |
-| :--- | :--- | :--- | :--- |
-| **◆** Diamond | <span style="color:#00ffff">Cyan</span> | **Active Satellites (α1-α6)** | A 6-satellite Walker Delta constellation at 550km altitude, moving counter-clockwise. |
-| **●** Dot | <span style="color:#4488ff">Blue</span> | **Debris Field** | 518 tracked debris items (dead satellites, rockets, bolts) forming an orbital belt. |
-| **■** Square | <span style="color:#ff0000">Red</span> | **Threat Object** | A piece of debris injected directly onto a collision path with α1. |
-| **▲** Triangle | <span style="color:#00ff00">Green</span> | **Ground Stations** | 6 ground communication hubs required for uplinking burn commands. |
-| **--** Line | <span style="color:#ffcc00">Yellow (Dashed)</span> | **Terminator Line** | The day/night boundary. Satellites switch to battery power on the dark side. |
-| **--** Ring | <span style="color:#666666">Gray (Dashed)</span> | **Orbital Ring** | The primary 550km altitude circular orbital path. |
-
----
-
-## Ground Stations Reference
-
-The following ground stations are physically placed on the 3D globe:
-
-| Station Name | Latitude | Longitude | Location |
-| :--- | :--- | :--- | :--- |
-| **IIT Delhi** | 28.54° N | 77.19° E | India |
-| **Svalbard** | 78.22° N | 15.62° E | Norway (Arctic) |
-| **Goldstone** | 35.42° N | 116.89° W | California, USA |
-| **Punta Arenas** | 53.15° S | 70.90° W | Chile |
-| **ISTRAC** | 13.03° N | 77.51° E | India |
-| **McMurdo** | 77.84° S | 166.66° E | Antarctica |
+### 3. Backend Physics Engine
+- **FastAPI / Python**: Exposes the required REST endpoints (`/api/telemetry`, `/api/maneuver/schedule`, `/api/simulate/step`).
+- Integrates a numerical propagator utilizing Runge-Kutta integration to step physics forward.
+- **Cloud Database (PostgreSQL)**: Fully integrated with a remote Neon/Supabase PostgreSQL database to log telemetry and executed maneuvers.
 
 ---
 
-## Setup & Running the Application
+## 💻 Setup & Deployment
 
-This project features a React/Vite frontend and a FastAPI backend. Both must be running simultaneously.
-
-### 1. Backend Setup
-The backend handles the Python-based orbital mechanics propagation and API endpoints.
+### Method 1: Docker (Official Hackathon Grader Setup)
+The project includes a root `Dockerfile` using the mandated `ubuntu:22.04` base image. It builds both the frontend and backend, and exposes the required **Port 8000**.
+Because the database is hosted remotely on Neon, **no local database setup is required**.
 
 ```bash
-# 1. Navigate to the project root
-cd CODE/NATIONAL_SPACE_HACKATHON
+# 1. Build the Docker image
+docker build -t project-aether .
 
-# 2. Activate the virtual environment
-# Windows:
-.\.venv\Scripts\activate
-# Mac/Linux:
-source .venv/bin/activate
+# 2. Run the container, binding to port 8000
+docker run -p 8000:8000 project-aether
+```
+Once running, you can access the dashboard and API directly at `http://localhost:8000`.
 
-# 3. Start the FastAPI server (runs on port 8000)
-python backend/main.py
+### Method 2: Local Development
+To run the components separately with Hot Module Replacement (HMR):
+
+#### Backend:
+```bash
+cd backend
+python -m venv .venv
+source .venv/bin/activate  # Or .\.venv\Scripts\activate on Windows
+pip install -r requirements.txt
+python main.py
 ```
 
-### 2. Frontend Setup
-The frontend renders the 3D dashboard using Three.js and React.
-
+#### Frontend:
 ```bash
-# 1. Navigate to the frontend directory
-cd CODE/NATIONAL_SPACE_HACKATHON/frontend
-
-# 2. Install dependencies (First time only)
+cd frontend
 npm install
-
-# 3. Start the Vite dev server (runs on port 5173)
 npm run dev
 ```
+Navigate to `http://localhost:5173` to view the UI.
 
-### 3. View the Dashboard
-Open your web browser and navigate to:
-**[http://localhost:5173](http://localhost:5173)**
+---
+
+## 🌎 Ground Stations Reference
+The backend ensures maneuvers are only scheduled if the satellite has line-of-sight to one of these hubs:
+1. **IIT Delhi** (India)
+2. **Svalbard** (Norway)
+3. **Goldstone** (California, USA)
+4. **Punta Arenas** (Chile)
+5. **ISTRAC** (India)
+6. **McMurdo** (Antarctica)
+
+---
+*Built for the 2026 Orbital Debris Avoidance & Constellation Management System Challenge.*
