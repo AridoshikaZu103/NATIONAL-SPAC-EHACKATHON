@@ -87,6 +87,16 @@ class Database:
                     status VARCHAR(20) DEFAULT 'ACTIVE'
                 );
             ''')
+            # Add new columns if they don't exist (for existing databases)
+            for col, typ in [
+                ("country", "VARCHAR(60) DEFAULT ''"),
+                ("frequency_ghz", "FLOAT DEFAULT 8.2"),
+                ("antenna_diameter_m", "FLOAT DEFAULT 10"),
+            ]:
+                try:
+                    await conn.execute(f"ALTER TABLE ground_stations ADD COLUMN IF NOT EXISTS {col} {typ};")
+                except Exception:
+                    pass
             print("Database schema verified (5 tables).")
 
     @classmethod
