@@ -1,4 +1,5 @@
 import React from 'react';
+import './ResourceDash.css';
 
 export default function ResourceDash({ satellites = [], deltaVData = [] }) {
   // Fuel Data - uses real fuel_kg from backend

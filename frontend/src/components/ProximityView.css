@@ -1,0 +1,54 @@
+/* ── Proximity Operations View ── */
+.proximity-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  box-sizing: border-box;
+  position: relative;
+}
+
+.proximity-title {
+  color: #00e5ff;
+  margin: 0 0 6px;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.proximity-plot {
+  flex-grow: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Radar sweep animation */
+@keyframes radar-sweep {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.radar-sweep-line {
+  transform-origin: 50px 50px;
+  animation: radar-sweep 4s linear infinite;
+}
+
+/* Ping animation for detected objects */
+@keyframes ping-pulse {
+  0% { r: 1.5; opacity: 1; }
+  100% { r: 4; opacity: 0; }
+}
+
+.threat-ping {
+  animation: ping-pulse 1.5s ease-out infinite;
+}
+
+.proximity-legend {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  font-size: 0.55rem;
+  color: #888;
+  margin-top: 4px;
+}

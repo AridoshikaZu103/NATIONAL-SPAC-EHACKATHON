@@ -1,4 +1,5 @@
 import React from 'react';
+import './ManeuverGantt.css';
 
 export default function ManeuverGantt({ timeline = [], currentTime = 0 }) {
   // Show window: CurrentTime - 1hr to CurrentTime + 5hr

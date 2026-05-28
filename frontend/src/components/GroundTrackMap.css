@@ -1,0 +1,101 @@
+/* ── Ground Track Map ── */
+.ground-track-container {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  background: linear-gradient(180deg, #040810 0%, #0a1628 50%, #060c18 100%);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.ground-track-title {
+  position: absolute;
+  top: 12px;
+  left: 14px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ground-track-title-text {
+  color: #00e5ff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-shadow: 0 0 10px rgba(0, 229, 255, 0.3);
+}
+
+.ground-track-time {
+  color: #666;
+  font-size: 0.7rem;
+  font-family: monospace;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.ground-track-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+/* Satellite marker pulse animation */
+@keyframes sat-pulse {
+  0%, 100% { opacity: 1; filter: drop-shadow(0 0 3px #00ffff); }
+  50% { opacity: 0.7; filter: drop-shadow(0 0 8px #00ffff); }
+}
+
+.sat-marker {
+  transition: all 0.45s ease-out;
+  animation: sat-pulse 2s ease-in-out infinite;
+}
+
+/* Ground station range circle */
+@keyframes gs-rotate {
+  from { stroke-dashoffset: 0; }
+  to { stroke-dashoffset: 20; }
+}
+
+.gs-range-circle {
+  animation: gs-rotate 8s linear infinite;
+}
+
+/* Ground station marker glow */
+@keyframes gs-glow {
+  0%, 100% { filter: drop-shadow(0 0 2px #00ff00); }
+  50% { filter: drop-shadow(0 0 6px #00ff00); }
+}
+
+.gs-marker {
+  animation: gs-glow 3s ease-in-out infinite;
+}
+
+/* Satellite trail */
+.sat-trail-history {
+  transition: d 0.45s ease-out;
+}
+
+.sat-trail-future {
+  transition: d 0.45s ease-out;
+}
+
+/* Info badge in bottom right */
+.ground-track-info {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  z-index: 10;
+  display: flex;
+  gap: 12px;
+  font-size: 0.6rem;
+  font-family: monospace;
+  color: #888;
+}
+
+.ground-track-info span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}

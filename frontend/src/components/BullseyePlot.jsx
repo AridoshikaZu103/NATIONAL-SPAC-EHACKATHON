@@ -1,4 +1,5 @@
 import React from 'react';
+import './BullseyePlot.css';
 
 export default function BullseyePlot({ threats = [] }) {
   const maxTCA = 10000; // Max TCA to display (seconds)
