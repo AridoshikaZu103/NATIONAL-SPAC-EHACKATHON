@@ -12,7 +12,7 @@ const GROUND_STATIONS = [
 
 const SAT_COLORS = ['#00ffff', '#00e5ff', '#00ccff', '#33bbff', '#66aaff', '#9999ff'];
 
-export default function GroundTrackMap({ satellites, time }) {
+export default function GroundTrackMap({ satellites, time, threats = [] }) {
   const trailsRef = useRef({});
 
   const getXY = (lat, lon) => ({
@@ -172,6 +172,22 @@ export default function GroundTrackMap({ satellites, time }) {
               <polygon points={x+','+(y-1.2)+' '+(x+1.2)+','+y+' '+x+','+(y+1.2)+' '+(x-1.2)+','+y} fill={color} className="sat-marker" />
               {/* Label */}
               <text x={x + 1.6} y={y - 1} fill={color} fontSize="1.8" fontFamily="monospace" opacity="0.8">{'\u03B1'}{i+1}</text>
+              {/* Status: SAFE or DIED */}
+              <text x={x + 1.6} y={y + 2.5} fill={sat.fuel_kg > 0 ? '#00ff88' : '#ff3366'} fontSize="1.2" fontFamily="monospace" opacity="0.6">
+                {sat.fuel_kg > 0 ? 'SAFE' : 'DIED'}
+              </text>
+            </g>
+          );
+        })}
+        {/* Threat markers on map */}
+        {threats.map((t, i) => {
+          if (!t.pos) return null;
+          const { x, y } = getXY(t.pos.lat, t.pos.lon);
+          return (
+            <g key={'thr-' + i} className="threat-map-marker">
+              <rect x={x - 1} y={y - 1} width="2" height="2" fill="#ff3366" className="sat-marker" />
+              <circle cx={x} cy={y} r="3" fill="none" stroke="#ff3366" strokeWidth="0.2" opacity="0.4" className="gs-range-circle" />
+              <text x={x + 2} y={y - 1.5} fill="#ff3366" fontSize="1.3" fontFamily="monospace" opacity="0.7">{t.id}</text>
             </g>
           );
         })}
@@ -179,6 +195,7 @@ export default function GroundTrackMap({ satellites, time }) {
 
       <div className="ground-track-info">
         <span><span style={{color:'#00ffff'}}>&#9670;</span> Satellites</span>
+        <span><span style={{color:'#ff3366'}}>&#9632;</span> Threat</span>
         <span><span style={{color:'#00ff00'}}>&#9650;</span> Ground Stn</span>
         <span><span style={{color:'rgba(255,255,255,0.3)'}}>|</span> Day/Night</span>
       </div>

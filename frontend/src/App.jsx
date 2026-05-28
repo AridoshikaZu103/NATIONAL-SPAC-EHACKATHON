@@ -45,6 +45,7 @@ export default function App() {
   const [prevThreats, setPrevThreats] = useState(0);
   const [prevManeuvers, setPrevManeuvers] = useState(0);
   const [threatAlert, setThreatAlert] = useState(null);
+  const [spawnCountdown, setSpawnCountdown] = useState(0);
 
   const addToast = useCallback((type, title, message) => {
     const t = createToast(type, title, message);
@@ -113,25 +114,35 @@ export default function App() {
     } catch (e) { console.error(e); }
   };
 
-  const simulateThreat = async () => {
-    // Target a RANDOM satellite, not just alpha-01
+  const simulateThreat = () => {
+    if (spawnCountdown > 0) return;
     const targetIdx = Math.floor(Math.random() * 6);
     const targetId = SAT_IDS[targetIdx];
-    try {
-      const threatObj = {
-        id: 'DEB-THR-' + Math.floor(Math.random() * 9000 + 1000),
-        type: 'THREAT',
-        targetSatId: targetId,
-        timeToCollision: 7200 + Math.random() * 7200
-      };
-      await axios.post('/api/telemetry', {
-        timestamp: new Date().toISOString(),
-        objects: [threatObj]
-      });
-      // Show center alert
-      setThreatAlert(threatObj);
-      setTimeout(() => setThreatAlert(null), 6000);
-    } catch (e) { console.error(e); }
+    const threatObj = {
+      id: 'DEB-THR-' + Math.floor(Math.random() * 9000 + 1000),
+      type: 'THREAT',
+      targetSatId: targetId,
+      timeToCollision: 7200 + Math.random() * 7200
+    };
+    // 5-second countdown
+    setSpawnCountdown(5);
+    addToast('warning', 'THREAT INCOMING', 'Debris detected. Impact in 5 seconds...');
+    let count = 5;
+    const timer = setInterval(() => {
+      count--;
+      setSpawnCountdown(count);
+      if (count <= 0) {
+        clearInterval(timer);
+        // Fire threat
+        axios.post('/api/telemetry', {
+          timestamp: new Date().toISOString(),
+          objects: [threatObj]
+        }).then(() => {
+          setThreatAlert(threatObj);
+          setTimeout(() => setThreatAlert(null), 6000);
+        }).catch(e => console.error(e));
+      }
+    }, 1000);
   };
 
   const togglePause = () => {
@@ -184,7 +195,9 @@ export default function App() {
             <button className="control-btn" onClick={handleStep}>
               STEP +{stepSize >= 3600 ? (stepSize / 3600) + 'HR' : stepSize + 'S'}
             </button>
-            <button className="control-btn threat-btn" onClick={simulateThreat}>SPAWN THREAT</button>
+            <button className={'control-btn threat-btn' + (spawnCountdown > 0 ? ' spawning' : '')} onClick={simulateThreat} disabled={spawnCountdown > 0}>
+              {spawnCountdown > 0 ? 'INCOMING ' + spawnCountdown + 's' : 'SPAWN THREAT'}
+            </button>
             <button className="control-btn report-btn" onClick={() => setShowReport(true)}>REPORT</button>
             <button className={'control-btn ' + (isPaused ? 'paused' : 'playing')} onClick={togglePause}>
               {isPaused ? '\u25B6 PLAY' : '\u23F8 PAUSE'}
@@ -290,7 +303,7 @@ export default function App() {
         {/* Modules */}
         <div className="modules-layout">
           <div className="glass-panel module-panel">
-            <GroundTrackMap satellites={satellites} time={simTime} />
+            <GroundTrackMap satellites={satellites} time={simTime} threats={threats} />
           </div>
           <div className="glass-panel module-panel">
             <ManeuverGantt timeline={timeline} currentTime={simTime} />
