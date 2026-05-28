@@ -7,7 +7,7 @@ export default function ManeuverGantt({ timeline, currentTime, satellites }) {
   const windowDuration = windowEnd - windowStart;
 
   // Group events by satellite ID for row display
-  const rows = ['SAT-Alpha-01', 'SAT-Alpha-02', 'SAT-Alpha-03', 'SAT-Alpha-04', 'SAT-Alpha-05', 'SAT-Alpha-06'];
+  const rows = ['alpha-01', 'alpha-02', 'alpha-03', 'alpha-04', 'alpha-05', 'alpha-06'];
 
   const getLeftPct = (time) => {
     const clamped = Math.max(windowStart, Math.min(windowEnd, time));

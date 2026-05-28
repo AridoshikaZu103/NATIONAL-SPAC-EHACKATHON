@@ -25,6 +25,10 @@ export default function App() {
   const [debris, setDebris] = useState([]);
   const [threats, setThreats] = useState([]);
   const [timeline, setTimeline] = useState([]);
+  const [deltaVData, setDeltaVData] = useState([]);
+
+  // Auto Mode
+  const [isAutoMode, setIsAutoMode] = useState(false);
 
   // Fetch Snapshot API
   useEffect(() => {
@@ -43,6 +47,7 @@ export default function App() {
         // The API returns threats with timeToCollision
         setThreats(data.threats || []);
         setTimeline(data.timeline || []);
+        if (data.deltaVData) setDeltaVData(data.deltaVData);
 
       } catch (err) {
         console.error("API Error:", err);
@@ -54,6 +59,41 @@ export default function App() {
     return () => clearInterval(interval);
   }, [isPaused]);
 
+
+  // Auto Mode Loop
+  useEffect(() => {
+    let interval;
+    if (isAutoMode && !isPaused) {
+      interval = setInterval(async () => {
+        try {
+          await axios.post('/api/simulate/step', { step_seconds: 3600 });
+        } catch(e) { console.error(e); }
+      }, 2000); // Step 1 hour every 2 seconds
+    }
+    return () => clearInterval(interval);
+  }, [isAutoMode, isPaused]);
+
+  const handleStep = async () => {
+    try {
+      await axios.post('/api/simulate/step', { step_seconds: 3600 });
+    } catch(e) { console.error(e); }
+  };
+
+  const simulateThreat = async () => {
+    try {
+      await axios.post('/api/telemetry', {
+        timestamp: new Date().toISOString(),
+        objects: [
+          {
+            id: `DEB-TEST-${Math.floor(Math.random()*1000)}`,
+            type: "THREAT",
+            targetSatId: "alpha-01",
+            timeToCollision: 8000 + Math.random()*2000 // approx 2+ hours away
+          }
+        ]
+      });
+    } catch(e) { console.error(e); }
+  };
 
   const handleTelemetryUpdate = (data) => {
     setTelemetry(data);
@@ -79,6 +119,19 @@ export default function App() {
           </div>
           
           <div className="status-badges">
+            <button 
+              className={`control-btn ${isAutoMode ? 'live' : ''}`}
+              onClick={() => setIsAutoMode(!isAutoMode)}
+              style={{ borderColor: isAutoMode ? '#00ff88' : '' }}
+            >
+              {isAutoMode ? 'AUTO ON' : 'AUTO OFF'}
+            </button>
+            <button className="control-btn" onClick={handleStep}>
+              STEP +1HR
+            </button>
+            <button className="control-btn" onClick={simulateThreat} style={{ borderColor: '#ff4444' }}>
+              SPAWN THREAT
+            </button>
             <button 
               className={`control-btn ${isPaused ? 'paused' : 'playing'}`}
               onClick={async () => {setIsPaused(!isPaused)}}
@@ -180,7 +233,7 @@ export default function App() {
 
           {/* Telemetry & Resource Heatmaps */}
           <div className="glass-panel" style={{ gridColumn: '1 / -1', padding: 0, border: 'none', background: 'transparent' }}>
-             <ResourceDash satellites={satellites} time={simTime} />
+             <ResourceDash satellites={satellites} time={simTime} deltaVData={deltaVData} />
           </div>
         </div>
 

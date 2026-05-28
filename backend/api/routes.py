@@ -56,6 +56,21 @@ async def get_snapshot():
             "timeToCollision": thr["timeToCollision"]
         })
         
+    # Generate deltaVData based on current time and total fuel consumed
+    deltaVData = []
+    days = int(global_state.time // 86400) + 1
+    total_fuel_consumed = sum(50.0 - s["fuel_kg"] for s in global_state.satellites)
+    total_cdms = len(global_state.cdms)
+    
+    # Fill at least 5 days for the UI, growing over time
+    for d in range(1, max(6, days + 1)):
+        factor = min(1.0, d / max(1, days))
+        deltaVData.append({
+            "day": f"Day {d}",
+            "fuelConsumed": round(total_fuel_consumed * factor, 2),
+            "collisionsAvoided": int((total_cdms / 2) * factor)
+        })
+        
     return {
         "timestamp": f"T+{global_state.time}s",
         "time": global_state.time,
@@ -63,7 +78,8 @@ async def get_snapshot():
         "debris_cloud": debris_cloud,
         "threats": threats_out,
         "cdms": global_state.cdms,
-        "timeline": global_state.timeline
+        "timeline": global_state.timeline,
+        "deltaVData": deltaVData
     }
 
 def calc_threat_pos(target, time_to_collision):

@@ -1,21 +1,15 @@
 import React from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Legend } from 'recharts';
 
-export default function ResourceDash({ satellites }) {
+export default function ResourceDash({ satellites, deltaVData = [] }) {
   // Fuel Data for Bar Chart
   const fuelData = satellites.map((s, i) => ({
     name: `α${i+1}`,
-    fuel: s.fuel || (50 - (i * 2.5)) // fallback mockup
+    fuel: s.fuel_kg !== undefined ? s.fuel_kg : (50 - (i * 2.5))
   }));
 
   // Δv Cost Analysis (Fuel Consumed vs Collisions Avoided)
-  const deltaVData = [
-    { day: 'Day 1', fuelConsumed: 0.2, collisionsAvoided: 1 },
-    { day: 'Day 2', fuelConsumed: 0.5, collisionsAvoided: 3 },
-    { day: 'Day 3', fuelConsumed: 1.2, collisionsAvoided: 8 },
-    { day: 'Day 4', fuelConsumed: 1.5, collisionsAvoided: 12 },
-    { day: 'Day 5', fuelConsumed: 2.1, collisionsAvoided: 15 },
-  ];
+  // Passed from backend via props
 
   return (
     <div style={{ width: '100%', height: '100%', display: 'flex', gap: '20px' }}>
