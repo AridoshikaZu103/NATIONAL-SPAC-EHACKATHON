@@ -2,19 +2,13 @@
   "version": 2,
   "buildCommand": "cd frontend && npm install && npm run build",
   "outputDirectory": "frontend/dist",
-  "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": "/api/index.py"
-    }
-  ],
   "functions": {
     "api/index.py": {
-      "runtime": "@vercel/python",
+      "runtime": "@vercel/python@4.3.1",
       "maxDuration": 60
     }
   },
-  "env": {
-    "DATABASE_URL": "@database-url"
-  }
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/index.py" }
+  ]
 }
