@@ -1,11 +1,5 @@
 {
   "framework": "vite",
   "buildCommand": "npm install && npm run build",
-  "outputDirectory": "dist",
-  "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": "https://orbital-insight-ssa-backend.vercel.app/api/$1"
-    }
-  ]
+  "outputDirectory": "dist"
 }
