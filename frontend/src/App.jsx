@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
+import LandingPage from './components/LandingPage';
 import EarthGlobe from './components/EarthGlobe';
 import GroundTrackMap from './components/GroundTrackMap';
 import BullseyePlot from './components/BullseyePlot';
@@ -9,7 +10,13 @@ import ProximityView from './components/ProximityView';
 import { HelpTutorial, ToastContainer, createToast, ReportModal } from './components/HelpTutorial';
 import './App.css';
 
+const SAT_IDS = ['alpha-01', 'alpha-02', 'alpha-03', 'alpha-04', 'alpha-05', 'alpha-06'];
+
 export default function App() {
+  // Landing page state
+  const [showLanding, setShowLanding] = useState(true);
+
+  // Sim controls
   const [isPaused, setIsPaused] = useState(false);
   const [colaWarning, setColaWarning] = useState(false);
 
@@ -23,7 +30,7 @@ export default function App() {
   const [deltaVData, setDeltaVData] = useState([]);
   const [maneuverCount, setManeuverCount] = useState(0);
 
-  // Selected satellite for telemetry (0-5)
+  // Selected satellite (0-5)
   const [selectedSat, setSelectedSat] = useState(0);
 
   // Auto Mode
@@ -31,7 +38,7 @@ export default function App() {
   const [stepSize, setStepSize] = useState(3600);
   const [autoSpeed, setAutoSpeed] = useState(2000);
 
-  // UI state
+  // UI
   const [showHelp, setShowHelp] = useState(false);
   const [showReport, setShowReport] = useState(false);
   const [toasts, setToasts] = useState([]);
@@ -44,60 +51,60 @@ export default function App() {
     setTimeout(() => setToasts(prev => prev.filter(x => x.id !== t.id)), 5000);
   }, []);
 
-  // Fetch Snapshot — 500ms for live feel
+  // ── Fetch snapshot (500ms) ──
   useEffect(() => {
+    if (showLanding) return;
     let interval;
     const fetchSnapshot = async () => {
       if (isPaused) return;
       try {
         const res = await axios.get('/api/visualization/snapshot');
-        const data = res.data;
-        setSimTime(data.time);
-        setSimTimestamp(data.timestamp || '');
-        setSatellites(data.satellites || []);
-        setDebris(data.debris_cloud || []);
-        setThreats(data.threats || []);
-        setTimeline(data.timeline || []);
-        if (data.deltaVData) setDeltaVData(data.deltaVData);
-        if (data.maneuver_count !== undefined) setManeuverCount(data.maneuver_count);
+        const d = res.data;
+        setSimTime(d.time);
+        setSimTimestamp(d.timestamp || '');
+        setSatellites(d.satellites || []);
+        setDebris(d.debris_cloud || []);
+        setThreats(d.threats || []);
+        setTimeline(d.timeline || []);
+        if (d.deltaVData) setDeltaVData(d.deltaVData);
+        if (d.maneuver_count !== undefined) setManeuverCount(d.maneuver_count);
       } catch (err) {
-        console.error("API Error:", err);
+        console.error('API Error:', err);
       }
     };
     fetchSnapshot();
     interval = setInterval(fetchSnapshot, 500);
     return () => clearInterval(interval);
-  }, [isPaused]);
+  }, [isPaused, showLanding]);
 
-  // Toast notifications for threat/maneuver changes
+  // ── Toast notifications ──
   useEffect(() => {
     if (threats.length > prevThreats) {
-      addToast('danger', 'THREAT DETECTED', 'New debris on collision course with ' + (threats[threats.length - 1]?.targetSatId || 'satellite'));
+      const newest = threats[threats.length - 1];
+      addToast('danger', 'THREAT DETECTED', 'Debris on collision course with ' + (newest?.targetSatId || 'satellite'));
     } else if (threats.length < prevThreats && prevThreats > 0) {
-      addToast('success', 'THREAT CLEARED', 'Evasion maneuver successful. Satellite safe.');
+      addToast('success', 'THREAT CLEARED', 'Evasion successful. Satellite safe.');
     }
     setPrevThreats(threats.length);
   }, [threats.length]);
 
   useEffect(() => {
-    const currentEvasions = timeline.filter(e => e.type === 'EVASION').length;
-    if (currentEvasions > prevManeuvers) {
-      addToast('warning', 'EVASION BURN', 'COLA engine fired. Fuel consumed: 2.5 kg');
-    }
-    setPrevManeuvers(currentEvasions);
+    const cur = timeline.filter(e => e.type === 'EVASION').length;
+    if (cur > prevManeuvers) addToast('warning', 'EVASION BURN', 'COLA engine fired. 2.5 kg consumed.');
+    setPrevManeuvers(cur);
   }, [timeline.length]);
 
-  // Auto Mode Loop
+  // ── Auto Mode loop ──
   useEffect(() => {
-    let interval;
-    if (isAutoMode && !isPaused) {
-      interval = setInterval(async () => {
-        try { await axios.post('/api/simulate/step', { step_seconds: stepSize }); } catch (e) { console.error(e); }
-      }, autoSpeed);
-    }
+    if (!isAutoMode || isPaused || showLanding) return;
+    const interval = setInterval(async () => {
+      try { await axios.post('/api/simulate/step', { step_seconds: stepSize }); }
+      catch (e) { console.error(e); }
+    }, autoSpeed);
     return () => clearInterval(interval);
-  }, [isAutoMode, isPaused, stepSize, autoSpeed]);
+  }, [isAutoMode, isPaused, stepSize, autoSpeed, showLanding]);
 
+  // ── Actions ──
   const handleStep = async () => {
     try {
       const res = await axios.post('/api/simulate/step', { step_seconds: stepSize });
@@ -106,45 +113,56 @@ export default function App() {
   };
 
   const simulateThreat = async () => {
+    // Target a RANDOM satellite, not just alpha-01
+    const targetIdx = Math.floor(Math.random() * 6);
+    const targetId = SAT_IDS[targetIdx];
     try {
       await axios.post('/api/telemetry', {
         timestamp: new Date().toISOString(),
         objects: [{
           id: 'DEB-THR-' + Math.floor(Math.random() * 9000 + 1000),
-          type: "THREAT",
-          targetSatId: "alpha-01",
+          type: 'THREAT',
+          targetSatId: targetId,
           timeToCollision: 7200 + Math.random() * 7200
         }]
       });
+      addToast('danger', 'THREAT SPAWNED', 'Debris targeting ' + targetId);
     } catch (e) { console.error(e); }
   };
 
-  const handleTelemetryUpdate = () => {};
-  const handleCollisionWarning = (val) => setColaWarning(val);
+  const togglePause = () => {
+    const next = !isPaused;
+    setIsPaused(next);
+    if (next && isAutoMode) setIsAutoMode(false);
+    addToast(next ? 'warning' : 'info', next ? 'PAUSED' : 'RESUMED', next ? 'Simulation paused. Auto mode off.' : 'Live polling resumed.');
+  };
+
+  const toggleAuto = () => {
+    const next = !isAutoMode;
+    setIsAutoMode(next);
+    if (next && isPaused) setIsPaused(false);
+    addToast('info', next ? 'AUTO ON' : 'AUTO OFF', next ? 'Auto-stepping every ' + (autoSpeed/1000) + 's' : 'Manual mode.');
+  };
+
   const dismissToast = (id) => setToasts(prev => prev.filter(t => t.id !== id));
 
-  const formatTime = (s) => {
-    const h = Math.floor(s / 3600);
-    const m = Math.floor((s % 3600) / 60);
-    return h + 'h ' + m + 'm';
-  };
+  const formatTime = (s) => Math.floor(s / 3600) + 'h ' + Math.floor((s % 3600) / 60) + 'm';
 
   const currentSat = satellites[selectedSat] || { lat: 0, lon: 0, alt: 550, velocity: 7.58, inclination: 51.6, fuel_kg: 50 };
 
+  // ── LANDING PAGE ──
+  if (showLanding) {
+    return <LandingPage onStart={() => setShowLanding(false)} />;
+  }
+
+  // ── DASHBOARD ──
   return (
     <div className="app-container">
       <div className="max-width-container">
 
-        {/* Toast Notifications */}
         <ToastContainer toasts={toasts} onDismiss={dismissToast} />
-
-        {/* Help Tutorial */}
         <HelpTutorial isOpen={showHelp} onClose={() => setShowHelp(false)} />
-
-        {/* Report Modal */}
         <ReportModal isOpen={showReport} onClose={() => setShowReport(false)} satellites={satellites} timeline={timeline} threats={threats} simTime={simTime} />
-
-        {/* Floating Help Button */}
         <button className="help-fab" onClick={() => setShowHelp(true)} title="How to use">?</button>
 
         {/* Header */}
@@ -154,7 +172,7 @@ export default function App() {
             <p className="subtitle">Autonomous Constellation Manager</p>
           </div>
           <div className="status-badges">
-            <button className={'control-btn' + (isAutoMode ? ' auto-active' : '')} onClick={() => setIsAutoMode(!isAutoMode)}>
+            <button className={'control-btn' + (isAutoMode ? ' auto-active' : '')} onClick={toggleAuto}>
               {isAutoMode ? 'AUTO ON' : 'AUTO OFF'}
             </button>
             <button className="control-btn" onClick={handleStep}>
@@ -162,8 +180,8 @@ export default function App() {
             </button>
             <button className="control-btn threat-btn" onClick={simulateThreat}>SPAWN THREAT</button>
             <button className="control-btn report-btn" onClick={() => setShowReport(true)}>REPORT</button>
-            <button className={'control-btn ' + (isPaused ? 'paused' : 'playing')} onClick={() => setIsPaused(!isPaused)}>
-              {isPaused ? 'PLAY' : 'PAUSE'}
+            <button className={'control-btn ' + (isPaused ? 'paused' : 'playing')} onClick={togglePause}>
+              {isPaused ? '\u25B6 PLAY' : '\u23F8 PAUSE'}
             </button>
           </div>
         </div>
@@ -201,9 +219,7 @@ export default function App() {
 
         {/* COLA Banner */}
         {colaWarning && !isPaused && (
-          <div className="cola-banner">
-            <strong>COLA ALERT:</strong> Close approach detected! Automatic evasion burn required.
-          </div>
+          <div className="cola-banner"><strong>COLA ALERT:</strong> Close approach detected!</div>
         )}
 
         {/* Main Grid */}
@@ -220,11 +236,10 @@ export default function App() {
               <div className="legend-item"><span className="symbol green-triangle">&#9650;</span> Ground Stn</div>
             </div>
             <div className="globe-container">
-              <EarthGlobe isPaused={isPaused} satellites={satellites} debris={debris} threats={threats} onTelemetryUpdate={handleTelemetryUpdate} onCollisionWarning={handleCollisionWarning} />
+              <EarthGlobe isPaused={isPaused} satellites={satellites} debris={debris} threats={threats} onTelemetryUpdate={() => {}} onCollisionWarning={(v) => setColaWarning(v)} />
             </div>
           </div>
 
-          {/* Right Sidebar */}
           <div className="sidebar">
             <div className="glass-panel">
               <h2 className="panel-title">LIVE TELEMETRY</h2>
@@ -252,7 +267,7 @@ export default function App() {
                 <InfoRow label="Debris Tracked" value="518" />
                 <InfoRow label="Ground Stations" value="6 Active" />
                 <InfoRow label="Sim Time" value={formatTime(simTime)} />
-                <InfoRow label="COLA Engine" value={colaWarning ? "FIRING" : "STANDBY"} valueColor={colaWarning ? "#ff3366" : "#00ff88"} />
+                <InfoRow label="COLA Engine" value={colaWarning ? 'FIRING' : 'STANDBY'} valueColor={colaWarning ? '#ff3366' : '#00ff88'} />
               </div>
             </div>
 
@@ -266,7 +281,7 @@ export default function App() {
           </div>
         </div>
 
-        {/* Secondary Modules */}
+        {/* Modules */}
         <div className="modules-layout">
           <div className="glass-panel module-panel">
             <GroundTrackMap satellites={satellites} time={simTime} />
@@ -289,16 +304,12 @@ export default function App() {
 }
 
 function TelemetryRow({ label, value, color }) {
-  // Extract numeric value for bar width
   const numMatch = value.match(/[\d.]+/);
   const num = numMatch ? parseFloat(numMatch[0]) : 0;
-
-  // Map label to icon and bar range
   const icons = { Altitude: '\u2191', Velocity: '\u2192', Latitude: '\u2195', Longitude: '\u2194', Inclination: '\u2220', Fuel: '\u26FD' };
   const maxVals = { Altitude: 700, Velocity: 10, Latitude: 90, Longitude: 180, Inclination: 90, Fuel: 50 };
   const icon = icons[label] || '\u2022';
-  const maxVal = maxVals[label] || 100;
-  const barPct = Math.min(100, (Math.abs(num) / maxVal) * 100);
+  const barPct = Math.min(100, (Math.abs(num) / (maxVals[label] || 100)) * 100);
 
   return (
     <div className="telemetry-row">
