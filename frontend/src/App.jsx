@@ -289,10 +289,29 @@ export default function App() {
 }
 
 function TelemetryRow({ label, value, color }) {
+  // Extract numeric value for bar width
+  const numMatch = value.match(/[\d.]+/);
+  const num = numMatch ? parseFloat(numMatch[0]) : 0;
+
+  // Map label to icon and bar range
+  const icons = { Altitude: '\u2191', Velocity: '\u2192', Latitude: '\u2195', Longitude: '\u2194', Inclination: '\u2220', Fuel: '\u26FD' };
+  const maxVals = { Altitude: 700, Velocity: 10, Latitude: 90, Longitude: 180, Inclination: 90, Fuel: 50 };
+  const icon = icons[label] || '\u2022';
+  const maxVal = maxVals[label] || 100;
+  const barPct = Math.min(100, (Math.abs(num) / maxVal) * 100);
+
   return (
     <div className="telemetry-row">
-      <span className="telemetry-label">{label}</span>
-      <span className="telemetry-value" style={{ color, textShadow: '0 0 8px ' + color + '40' }}>{value}</span>
+      <div className="telemetry-left">
+        <span className="telemetry-icon" style={{ color }}>{icon}</span>
+        <span className="telemetry-label">{label}</span>
+      </div>
+      <div className="telemetry-right">
+        <div className="telemetry-bar-track">
+          <div className="telemetry-bar-fill" style={{ width: barPct + '%', background: 'linear-gradient(90deg, ' + color + '80, ' + color + ')' }} />
+        </div>
+        <span className="telemetry-value" style={{ color, textShadow: '0 0 8px ' + color + '40' }}>{value}</span>
+      </div>
     </div>
   );
 }

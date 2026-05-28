@@ -15,49 +15,67 @@ const SAT_COLORS = ['#00ffff', '#00e5ff', '#00ccff', '#33bbff', '#66aaff', '#999
 export default function GroundTrackMap({ satellites, time }) {
   const trailsRef = useRef({});
 
-  const getXY = (lat, lon) => {
-    const x = ((lon + 180) / 360) * 100;
-    const y = ((90 - lat) / 180) * 100;
-    return { x, y };
-  };
+  const getXY = (lat, lon) => ({
+    x: ((lon + 180) / 360) * 100,
+    y: ((90 - lat) / 180) * 100
+  });
 
-  // Store trail history (last 30 positions per satellite)
+  // Store ONLY last 15 points per satellite (keeps trails clean)
   useEffect(() => {
     if (!satellites || satellites.length === 0) return;
     satellites.forEach((sat, i) => {
       const key = sat.id || i;
       if (!trailsRef.current[key]) trailsRef.current[key] = [];
-      trailsRef.current[key].push(getXY(sat.lat, sat.lon));
-      if (trailsRef.current[key].length > 40) trailsRef.current[key].shift();
+      const pt = getXY(sat.lat, sat.lon);
+      const arr = trailsRef.current[key];
+      // Avoid duplicate points
+      if (arr.length === 0 || Math.abs(arr[arr.length - 1].x - pt.x) > 0.1 || Math.abs(arr[arr.length - 1].y - pt.y) > 0.1) {
+        arr.push(pt);
+      }
+      if (arr.length > 15) arr.shift();
     });
   }, [satellites, time]);
 
   const toSvgPath = (pts) => {
     if (!pts || pts.length < 2) return '';
-    return pts.map((p, i) => (i === 0 ? 'M' : 'L') + p.x.toFixed(2) + ',' + p.y.toFixed(2)).join(' ');
+    // Break path at wrap-around (lon jump > 40%)
+    let d = '';
+    for (let i = 0; i < pts.length; i++) {
+      if (i === 0) { d += 'M' + pts[i].x.toFixed(1) + ',' + pts[i].y.toFixed(1); continue; }
+      if (Math.abs(pts[i].x - pts[i-1].x) > 40) {
+        d += ' M' + pts[i].x.toFixed(1) + ',' + pts[i].y.toFixed(1);
+      } else {
+        d += ' L' + pts[i].x.toFixed(1) + ',' + pts[i].y.toFixed(1);
+      }
+    }
+    return d;
   };
 
-  // Generate predicted track
-  const generateFuture = (sat, count) => {
+  // Simple predicted path (short, clean)
+  const predictPath = (sat, i) => {
     const pts = [];
-    const inc = 51.6;
-    for (let i = 0; i < count; i++) {
-      const t = i * 0.05;
-      const lat = inc * Math.sin(t);
-      const lon = ((sat.lon + i * 4.5) + 540) % 360 - 180;
+    const inc = sat.inclination || 51.6;
+    for (let j = 0; j < 12; j++) {
+      const t = j * 0.08;
+      const lat = inc * Math.sin(t + (time || 0) * 0.001 + i);
+      const lon = ((sat.lon + j * 6) + 540) % 360 - 180;
       pts.push(getXY(lat, lon));
     }
-    return pts;
+    return toSvgPath(pts);
   };
 
   // Sinusoidal terminator
-  const terminatorPhase = ((time || 0) / 86400) * 2 * Math.PI;
-  const terminatorPath = Array.from({ length: 50 }, (_, i) => {
-    const frac = i / 49;
-    const xBase = frac * 100;
-    const yOff = 15 * Math.sin(terminatorPhase + frac * Math.PI * 2);
-    return (i === 0 ? 'M' : 'L') + xBase.toFixed(1) + ',' + (50 + yOff).toFixed(1);
-  }).join(' ') + ' L100,100 L0,100 Z';
+  const tPhase = ((time || 0) / 86400) * 2 * Math.PI;
+  const terminatorPath = (() => {
+    let d = '';
+    for (let i = 0; i <= 40; i++) {
+      const frac = i / 40;
+      const x = frac * 100;
+      const yOff = 12 * Math.sin(tPhase + frac * Math.PI * 2);
+      d += (i === 0 ? 'M' : 'L') + x.toFixed(1) + ',' + (50 + yOff).toFixed(1);
+    }
+    return d + ' L100,100 L0,100 Z';
+  })();
 
   return (
     <div className="ground-track-container">
@@ -68,34 +86,34 @@ export default function GroundTrackMap({ satellites, time }) {
 
       <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" className="ground-track-svg">
         {/* Grid */}
-        {[0,10,20,30,40,50,60,70,80,90,100].map(x => (
-          <line key={'gx'+x} x1={x} y1={0} x2={x} y2={100} stroke="rgba(0,212,255,0.06)" strokeWidth="0.15" />
+        {[0,20,40,60,80,100].map(x => (
+          <line key={'gx'+x} x1={x} y1={0} x2={x} y2={100} stroke="rgba(0,212,255,0.05)" strokeWidth="0.15" />
         ))}
-        {[0,10,20,30,40,50,60,70,80,90,100].map(y => (
-          <line key={'gy'+y} x1={0} y1={y} x2={100} y2={y} stroke="rgba(0,212,255,0.06)" strokeWidth="0.15" />
+        {[0,25,50,75,100].map(y => (
+          <line key={'gy'+y} x1={0} y1={y} x2={100} y2={y} stroke="rgba(0,212,255,0.05)" strokeWidth="0.15" />
         ))}
-        <line x1={0} y1={50} x2={100} y2={50} stroke="rgba(0,212,255,0.15)" strokeWidth="0.25" strokeDasharray="1,1" />
+        {/* Equator */}
+        <line x1={0} y1={50} x2={100} y2={50} stroke="rgba(0,212,255,0.12)" strokeWidth="0.2" strokeDasharray="1,1" />
 
-        {/* Continent outlines */}
-        <path d="M12,28 L15,24 L18,22 L22,21 L26,22 L28,24 L30,28 L30,32 L28,36 L25,39 L22,41 L18,42 L15,40 L12,36 L11,32 Z" fill="rgba(0,229,255,0.04)" stroke="rgba(0,229,255,0.12)" strokeWidth="0.25" />
-        <path d="M24,54 L27,52 L30,53 L32,58 L31,64 L29,68 L27,72 L24,70 L22,65 L22,60 Z" fill="rgba(0,229,255,0.04)" stroke="rgba(0,229,255,0.12)" strokeWidth="0.25" />
-        <path d="M47,23 L50,20 L54,21 L55,25 L53,28 L49,30 L47,27 Z" fill="rgba(0,229,255,0.04)" stroke="rgba(0,229,255,0.12)" strokeWidth="0.25" />
-        <path d="M47,38 L53,35 L57,38 L59,44 L58,52 L56,58 L52,62 L48,58 L46,50 L46,42 Z" fill="rgba(0,229,255,0.04)" stroke="rgba(0,229,255,0.12)" strokeWidth="0.25" />
-        <path d="M55,18 L62,15 L70,14 L78,16 L84,20 L82,28 L76,34 L68,32 L60,26 L56,22 Z" fill="rgba(0,229,255,0.04)" stroke="rgba(0,229,255,0.12)" strokeWidth="0.25" />
-        <path d="M77,60 L84,57 L88,60 L87,66 L82,70 L77,67 Z" fill="rgba(0,229,255,0.04)" stroke="rgba(0,229,255,0.12)" strokeWidth="0.25" />
-        <path d="M36,90 L64,90 L64,100 L36,100 Z" fill="rgba(0,229,255,0.02)" stroke="rgba(0,229,255,0.08)" strokeWidth="0.2" />
+        {/* Continents */}
+        <path d="M12,28 L15,24 L19,22 L23,21 L27,23 L29,27 L29,32 L27,36 L24,39 L20,41 L16,40 L12,36 Z" fill="rgba(0,229,255,0.04)" stroke="rgba(0,229,255,0.1)" strokeWidth="0.2" />
+        <path d="M24,54 L27,52 L30,54 L31,60 L29,66 L27,70 L24,68 L22,62 Z" fill="rgba(0,229,255,0.04)" stroke="rgba(0,229,255,0.1)" strokeWidth="0.2" />
+        <path d="M47,24 L51,21 L54,23 L53,28 L49,29 Z" fill="rgba(0,229,255,0.04)" stroke="rgba(0,229,255,0.1)" strokeWidth="0.2" />
+        <path d="M47,38 L53,36 L57,39 L58,46 L56,54 L52,58 L48,54 L46,46 Z" fill="rgba(0,229,255,0.04)" stroke="rgba(0,229,255,0.1)" strokeWidth="0.2" />
+        <path d="M56,19 L64,16 L74,15 L82,18 L83,26 L77,32 L66,30 L58,24 Z" fill="rgba(0,229,255,0.04)" stroke="rgba(0,229,255,0.1)" strokeWidth="0.2" />
+        <path d="M78,60 L84,58 L87,62 L85,67 L80,68 Z" fill="rgba(0,229,255,0.04)" stroke="rgba(0,229,255,0.1)" strokeWidth="0.2" />
 
-        {/* Terminator shadow */}
-        <path d={terminatorPath} fill="rgba(0,0,20,0.35)" />
+        {/* Terminator */}
+        <path d={terminatorPath} fill="rgba(0,0,20,0.25)" />
 
-        {/* Ground station markers + range circles */}
+        {/* Ground stations */}
         {GROUND_STATIONS.map(gs => {
           const p = getXY(gs.lat, gs.lon);
           return (
             <g key={gs.id} className="gs-marker">
-              <circle cx={p.x} cy={p.y} r={6} fill="none" stroke="rgba(0,255,0,0.15)" strokeWidth="0.3" strokeDasharray="1,1" className="gs-range-circle" />
-              <polygon points={p.x+','+( p.y-1.2)+' '+(p.x+1)+','+(p.y+0.6)+' '+(p.x-1)+','+(p.y+0.6)} fill="#00ff00" />
-              <text x={p.x + 1.5} y={p.y - 1.5} fill="#00ff00" fontSize="1.8" fontFamily="monospace" opacity="0.6">{gs.id}</text>
+              <circle cx={p.x} cy={p.y} r={4} fill="none" stroke="rgba(0,255,0,0.12)" strokeWidth="0.25" strokeDasharray="0.8,0.8" className="gs-range-circle" />
+              <polygon points={p.x+','+(p.y-1)+' '+(p.x+0.8)+','+(p.y+0.5)+' '+(p.x-0.8)+','+(p.y+0.5)} fill="#00ff00" />
+              <text x={p.x + 1.2} y={p.y - 1.2} fill="#00ff00" fontSize="1.6" fontFamily="monospace" opacity="0.5">{gs.id}</text>
             </g>
           );
         })}
@@ -105,32 +123,27 @@ export default function GroundTrackMap({ satellites, time }) {
           const { x, y } = getXY(sat.lat, sat.lon);
           const key = sat.id || i;
           const trail = trailsRef.current[key] || [];
-          const futurePts = generateFuture(sat, 25);
           const color = SAT_COLORS[i % SAT_COLORS.length];
 
           return (
             <g key={'sat-' + i}>
-              {/* History trail (solid, fading) */}
+              {/* Clean history trail (solid, short) */}
               {trail.length > 1 && (
-                <path d={toSvgPath(trail)} fill="none" stroke={color} strokeWidth="0.35" opacity="0.3" className="sat-trail-history" />
+                <path d={toSvgPath(trail)} fill="none" stroke={color} strokeWidth="0.3" opacity="0.4" />
               )}
-              {/* Future track (dashed) */}
-              <path d={toSvgPath(futurePts)} fill="none" stroke={color} strokeWidth="0.3" strokeDasharray="1,0.5" opacity="0.5" className="sat-trail-future" />
-              {/* Satellite marker with CSS transition */}
-              <g className="sat-marker" style={{ transform: 'translate(' + x + '%, ' + y + '%)' }}>
-                <polygon points={x+','+(y-1.3)+' '+(x+1.3)+','+y+' '+x+','+(y+1.3)+' '+(x-1.3)+','+y} fill={color} />
-              </g>
-              <text x={x + 1.8} y={y - 1.2} fill={color} fontSize="2.2" fontFamily="monospace">{'\u03B1'}{i+1}</text>
+              {/* Short predicted path (dashed) */}
+              <path d={predictPath(sat, i)} fill="none" stroke={color} strokeWidth="0.2" strokeDasharray="0.8,0.5" opacity="0.3" />
+              {/* Satellite diamond marker */}
+              <polygon points={x+','+(y-1.2)+' '+(x+1.2)+','+y+' '+x+','+(y+1.2)+' '+(x-1.2)+','+y} fill={color} className="sat-marker" />
+              <text x={x + 1.6} y={y - 1} fill={color} fontSize="2" fontFamily="monospace" opacity="0.8">{'\u03B1'}{i+1}</text>
             </g>
           );
         })}
       </svg>
 
-      {/* Info badges */}
       <div className="ground-track-info">
         <span><span style={{color:'#00ffff'}}>&#9670;</span> Satellites</span>
         <span><span style={{color:'#00ff00'}}>&#9650;</span> Ground Stn</span>
-        <span><span style={{color:'rgba(0,0,20,0.6)'}}>&#9632;</span> Terminator</span>
       </div>
     </div>
   );
