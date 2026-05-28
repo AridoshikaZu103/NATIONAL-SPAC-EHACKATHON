@@ -7,7 +7,7 @@ import BullseyePlot from './components/BullseyePlot';
 import ResourceDash from './components/ResourceDash';
 import ManeuverGantt from './components/ManeuverGantt';
 import ProximityView from './components/ProximityView';
-import { HelpTutorial, ToastContainer, createToast, ReportModal } from './components/HelpTutorial';
+import { HelpTutorial, ToastContainer, createToast, ReportModal, ThreatAlert } from './components/HelpTutorial';
 import './App.css';
 
 const SAT_IDS = ['alpha-01', 'alpha-02', 'alpha-03', 'alpha-04', 'alpha-05', 'alpha-06'];
@@ -44,6 +44,7 @@ export default function App() {
   const [toasts, setToasts] = useState([]);
   const [prevThreats, setPrevThreats] = useState(0);
   const [prevManeuvers, setPrevManeuvers] = useState(0);
+  const [threatAlert, setThreatAlert] = useState(null);
 
   const addToast = useCallback((type, title, message) => {
     const t = createToast(type, title, message);
@@ -117,16 +118,19 @@ export default function App() {
     const targetIdx = Math.floor(Math.random() * 6);
     const targetId = SAT_IDS[targetIdx];
     try {
+      const threatObj = {
+        id: 'DEB-THR-' + Math.floor(Math.random() * 9000 + 1000),
+        type: 'THREAT',
+        targetSatId: targetId,
+        timeToCollision: 7200 + Math.random() * 7200
+      };
       await axios.post('/api/telemetry', {
         timestamp: new Date().toISOString(),
-        objects: [{
-          id: 'DEB-THR-' + Math.floor(Math.random() * 9000 + 1000),
-          type: 'THREAT',
-          targetSatId: targetId,
-          timeToCollision: 7200 + Math.random() * 7200
-        }]
+        objects: [threatObj]
       });
-      addToast('danger', 'THREAT SPAWNED', 'Debris targeting ' + targetId);
+      // Show center alert
+      setThreatAlert(threatObj);
+      setTimeout(() => setThreatAlert(null), 6000);
     } catch (e) { console.error(e); }
   };
 
@@ -163,6 +167,7 @@ export default function App() {
         <ToastContainer toasts={toasts} onDismiss={dismissToast} />
         <HelpTutorial isOpen={showHelp} onClose={() => setShowHelp(false)} />
         <ReportModal isOpen={showReport} onClose={() => setShowReport(false)} satellites={satellites} timeline={timeline} threats={threats} simTime={simTime} />
+        <ThreatAlert threat={threatAlert} onDismiss={() => setThreatAlert(null)} />
         <button className="help-fab" onClick={() => setShowHelp(true)} title="How to use">?</button>
 
         {/* Header */}
