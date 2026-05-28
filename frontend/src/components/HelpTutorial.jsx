@@ -81,9 +81,9 @@ const TUTORIAL_STEPS = [
         <div className="help-what">WHAT HAPPENS</div>
         <p>Each satellite starts with <span className="key">50 kg</span> of fuel. Every evasion costs ~2.5 kg.</p>
         <p>Fuel bar colors indicate health:</p>
-        <p>\u2022 <span className="safe">Green (>30 kg)</span> \u2014 Healthy. Full operational capability.</p>
+        <p>\u2022 <span className="safe">Green ({'>'}30 kg)</span> \u2014 Healthy. Full operational capability.</p>
         <p>\u2022 <span className="warn">Yellow (15\u201330 kg)</span> \u2014 Caution. Limited maneuvers remaining.</p>
-        <p>\u2022 <span className="crit">Red (<15 kg)</span> \u2014 Critical. Fuel reserves dangerously low.</p>
+        <p>\u2022 <span className="crit">Red ({'<'}15 kg)</span> \u2014 Critical. Fuel reserves dangerously low.</p>
         <p>The <span className="key">Delta-V chart</span> plots cumulative fuel consumed vs. collisions avoided over time — this tells you if your fleet is sustainable.</p>
       </>
     ),
