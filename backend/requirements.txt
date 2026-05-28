@@ -1,6 +1,5 @@
 fastapi
 uvicorn
-numpy
 pydantic
 asyncpg
 python-dotenv

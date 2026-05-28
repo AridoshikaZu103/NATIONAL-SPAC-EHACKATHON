@@ -1,5 +1,4 @@
 fastapi
-numpy
 pydantic
 asyncpg
 python-dotenv

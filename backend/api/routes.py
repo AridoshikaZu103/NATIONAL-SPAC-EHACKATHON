@@ -1,13 +1,17 @@
 """
 API routes for orbital data and autonomous management
+Pure Python implementation (no numpy).
 """
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-import numpy as np
+import math
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta, timezone
 
-from orbital_mechanics.propagator import PropagationEngine, OrbitalState, SpatialIndexing
+from orbital_mechanics.propagator import (
+    PropagationEngine, OrbitalState, SpatialIndexing,
+    _vec_cross, _vec_norm, _vec_scale, _vec_add, _vec_dot
+)
 from state import global_state
 from database import Database
 
@@ -36,11 +40,14 @@ async def get_snapshot():
     satellites = []
     for sat in global_state.satellites:
         lat, lon, alt = PropagationEngine.eci_to_geodetic(sat["position"], global_state.time)
-        vel_mag = float(np.linalg.norm(sat["velocity"]))
+        vel_mag = _vec_norm(sat["velocity"])
         # Compute inclination from angular momentum vector
-        h_vec = np.cross(sat["position"], sat["velocity"])
-        h_mag = np.linalg.norm(h_vec)
-        inc = float(np.degrees(np.arccos(h_vec[2] / h_mag))) if h_mag > 1e-6 else 0.0
+        h_vec = _vec_cross(sat["position"], sat["velocity"])
+        h_mag = _vec_norm(h_vec)
+        if h_mag > 1e-6:
+            inc = math.degrees(math.acos(max(-1, min(1, h_vec[2] / h_mag))))
+        else:
+            inc = 0.0
         satellites.append({
             "id": sat["id"],
             "name": sat["name"],
@@ -100,18 +107,21 @@ async def get_snapshot():
     }
 
 def calc_threat_pos(target, time_to_collision):
-    r_vec = target["position"]
-    v_vec = target["velocity"]
-    h_vec = np.cross(r_vec, v_vec)
-    if np.linalg.norm(h_vec) < 1e-6:
-        h_norm = np.array([0, 0, 1])
+    r_vec = list(target["position"])
+    v_vec = list(target["velocity"])
+    h_vec = _vec_cross(r_vec, v_vec)
+    h_mag = _vec_norm(h_vec)
+    if h_mag < 1e-6:
+        h_norm = [0, 0, 1]
     else:
-        h_norm = h_vec / np.linalg.norm(h_vec)
-    theta = max(0.0, (time_to_collision / 86400.0) * (np.pi / 4))
-    term1 = r_vec * np.cos(theta)
-    term2 = np.cross(h_norm, r_vec) * np.sin(theta)
-    term3 = h_norm * np.dot(h_norm, r_vec) * (1 - np.cos(theta))
-    return term1 + term2 + term3
+        h_norm = _vec_scale(h_vec, 1.0 / h_mag)
+    theta = max(0.0, (time_to_collision / 86400.0) * (math.pi / 4))
+    cos_t = math.cos(theta)
+    sin_t = math.sin(theta)
+    term1 = _vec_scale(r_vec, cos_t)
+    term2 = _vec_scale(_vec_cross(h_norm, r_vec), sin_t)
+    term3 = _vec_scale(h_norm, _vec_dot(h_norm, r_vec) * (1 - cos_t))
+    return _vec_add(_vec_add(term1, term2), term3)
 
 @router.post("/telemetry")
 async def ingest_telemetry(req: TelemetryRequest):
@@ -122,7 +132,7 @@ async def ingest_telemetry(req: TelemetryRequest):
             if target:
                 obj["position"] = calc_threat_pos(target, obj.get("timeToCollision", 86400))
             else:
-                obj["position"] = np.array([7000.0, 0.0, 0.0])
+                obj["position"] = [7000.0, 0.0, 0.0]
             global_state.threats.append(obj)
             await Database.log_operation("THREAT_DETECTED", "Threat " + obj["id"] + " targeting " + obj.get("targetSatId", "?"), global_state.time)
 
@@ -169,7 +179,7 @@ async def simulate_step(req: StepRequest):
     collisions_detected = 0
 
     for sat in global_state.satellites:
-        state = np.concatenate([sat["position"], sat["velocity"]])
+        state = list(sat["position"]) + list(sat["velocity"])
         for _ in range(steps):
             state = engine.rk4_step(state, 10.0)
         sat["position"] = state[:3]
@@ -178,7 +188,7 @@ async def simulate_step(req: StepRequest):
         await Database.log_telemetry(sat["id"], lat, lon, alt, sat["fuel_kg"])
 
     for deb in global_state.debris:
-        state = np.concatenate([deb["position"], deb["velocity"]])
+        state = list(deb["position"]) + list(deb["velocity"])
         for _ in range(steps):
             state = engine.rk4_step(state, 10.0)
         deb["position"] = state[:3]
