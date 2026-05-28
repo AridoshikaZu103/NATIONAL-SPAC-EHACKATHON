@@ -1,101 +1,246 @@
 # Orbital Debris Avoidance & Constellation Management System
 
-Advanced Autonomous Constellation Manager (ACM) for the **National Space Hackathon 2026**. Features a high-performance Python/FastAPI backend with Runge-Kutta orbital propagation and a React/Three.js dashboard for real-time Space Situational Awareness (SSA).
+> **National Space Hackathon 2026** | Autonomous Space Situational Awareness (SSA) Dashboard
 
-## Features
-
-### 3D WebGL Globe
-- **Three.js** photorealistic Earth with bump maps, specular reflections, and atmospheric clouds
-- 6 active satellites (cyan diamonds), 518 debris (blue dots), threats (red cubes), and 6 ground stations (green triangles)
-
-### Visualization Modules
-- **Ground Track (Mercator)** — Live CSS map with animated satellite markers, trail history, sinusoidal terminator, and ground station comm-range circles
-- **Conjunction Bullseye** — Pure SVG polar chart: center = satellite, radius = TCA, color = risk level
-- **Proximity Operations** — Radar sweep display with range rings showing nearby objects in real-time
-- **Maneuver Timeline (Gantt)** — Chronological EVASION/RECOVERY burns with 600s thermal cooldown zones
-- **Fleet Propellant** — Color-coded bar chart (green/yellow/red) for all 6 satellites
-- **Delta-V Cost Analysis** — Fuel consumed vs. collisions avoided over simulation days
-- **Multi-Satellite Telemetry** — Clickable selector for alpha-1 through alpha-6 telemetry
-
-### Backend Physics Engine
-- **FastAPI** REST endpoints: `/api/telemetry`, `/api/maneuver/schedule`, `/api/simulate/step`
-- Runge-Kutta 4th-order integration with J2 perturbation
-- Autonomous COLA (Collision Avoidance) engine
-
-### Database (Neon PostgreSQL)
-5 tables for full operational logging:
-- `telemetry` — Satellite position/fuel snapshots
-- `maneuver_events` — Evasion and recovery burns
-- `cdm_log` — Conjunction Data Messages with risk levels
-- `operations_log` — Audit trail of all simulation events
-- `ground_stations` — Communication hub reference data
+A full-stack real-time orbital simulation platform that tracks 6 satellites and 518 debris objects in LEO (Low Earth Orbit), featuring autonomous collision avoidance, 3D WebGL visualization, and mission-critical decision support.
 
 ---
 
-## Environment Variables
+## Key Features
 
-| Variable | Description | Required |
-|:---------|:-----------|:---------|
-| `DATABASE_URL` | Neon PostgreSQL connection string | Yes |
-| `BACKEND_PORT` | Backend port (default: 8000) | No |
+| Feature | Description |
+|---|---|
+| **3D WebGL Globe** | Real Earth with day/night cycle, 6 orbit rings, satellite markers, 518 debris points, and threat visualization |
+| **Ground Track (Mercator)** | NASA Blue Marble Earth image with live day/night terminator overlay |
+| **COLA Engine** | Collision Avoidance — auto-fires evasion + recovery burns when TCA < 5 hours |
+| **Random Threat Simulation** | Spawn debris targeting any satellite (alpha-01 to alpha-06) with center-screen COLLISION WARNING alert |
+| **Live Telemetry** | Per-satellite altitude, velocity, lat/lon, inclination, and fuel monitoring |
+| **Conjunction Bullseye Plot** | SVG radar showing threat distance/angle relative to selected satellite |
+| **Proximity Operations** | Radar view of nearby objects with TCA countdown and color-coded risk levels |
+| **Maneuver Gantt Timeline** | Visual timeline of evasion and recovery burns with dynamic time windowing |
+| **Fleet Resource Dashboard** | Propellant bars, delta-V cost analysis, and mission budget tracking |
+| **Interactive Tutorial** | 7-step guided walkthrough explaining every feature |
+| **Threat Alert System** | Center-screen pulsing collision warning with shake animation and ACKNOWLEDGE button |
+| **Toast Notifications** | Top-center notification system for all simulation events |
+| **Reports & Analysis** | Live mission summary with fleet status, CDM logs, and maneuver history |
+| **Responsive Design** | Works on desktop, tablet, and smartphone |
 
 ---
 
-## Setup
+## Architecture
 
-### Docker (Hackathon Grader)
-```bash
-docker build -t project-aether .
-docker run -p 8000:8000 project-aether
+```
+Frontend (React + Vite)          Backend (FastAPI + Python)
+--------------------------       ---------------------------
+|  Landing Page           |      |  main.py (Uvicorn)      |
+|  App.jsx (Dashboard)    | <--> |  routes.py (API)        |
+|  EarthGlobe (Three.js)  |      |  state.py (Physics)     |
+|  GroundTrackMap (SVG)    |      |  database.py (Neon PG)  |
+|  BullseyePlot (SVG)     |      |  seed.sql (Schema)      |
+|  ProximityView (SVG)     |      ---------------------------
+|  ManeuverGantt (SVG)     |             |
+|  ResourceDash (SVG)      |      PostgreSQL (Neon/Supabase)
+|  HelpTutorial (Modal)    |      ---------------------------
+|  Telemetry (CSS bars)    |      |  telemetry              |
+--------------------------       |  maneuver_events         |
+                                 |  cdm_log                 |
+                                 |  operations_log          |
+                                 |  ground_stations          |
+                                 ---------------------------
 ```
 
-### Local Development
-```bash
-# Backend
-cd backend
-python -m venv .venv
-.\.venv\Scripts\activate  # Windows
-pip install -r requirements.txt
-python main.py
+---
 
-# Frontend (separate terminal)
-cd frontend
-npm install
-npm run dev
-```
+## Tech Stack
 
-### Vercel Deployment
-1. Push to GitHub
-2. Import in Vercel dashboard
-3. Add `DATABASE_URL` environment variable
-4. Deploy — `vercel.json` handles build + routing automatically
+| Layer | Technology | Purpose |
+|---|---|---|
+| **Frontend** | React 18 + Vite | UI framework and build tool |
+| **3D Rendering** | Three.js + OrbitControls | WebGL Earth globe with textures |
+| **Styling** | Vanilla CSS | Glassmorphism, animations, responsive |
+| **Backend** | FastAPI + Uvicorn | REST API with async Python |
+| **Physics** | RK4 Propagator (Python) | Orbital mechanics simulation |
+| **Database** | PostgreSQL (Neon) | Telemetry, CDM, and maneuver storage |
+| **Deployment** | Vercel (frontend) | Static hosting with API proxy |
 
 ---
 
-## Ground Stations
+## Simulation Process
 
-| Station | Location | Coordinates |
-|:--------|:---------|:-----------|
-| IIT Delhi | India | 28.54N, 77.19E |
-| Svalbard | Norway | 78.22N, 15.62E |
-| Goldstone | California, USA | 35.42N, 116.89W |
-| Punta Arenas | Chile | 53.15S, 70.90W |
-| ISTRAC | India | 13.03N, 77.51E |
-| McMurdo | Antarctica | 77.84S, 166.66E |
+### Orbital Mechanics
+1. **Walker Delta Constellation**: 6 satellites at ~550 km altitude, 51.6 deg inclination
+2. **RK4 Propagation**: 4th-order Runge-Kutta integrator for accurate orbit prediction
+3. **Debris Cloud**: 518 tracked objects with independent orbital parameters
+4. **J2 Perturbation**: Earth oblateness effects on orbital precession
+
+### Collision Avoidance (COLA)
+1. **Threat Detection**: Debris objects on collision course are identified
+2. **CDM Generation**: Conjunction Data Messages with probability of collision (Pc)
+3. **TCA Monitoring**: Time to Closest Approach tracked in real-time
+4. **Auto-Evasion**: When TCA < 5 hours, COLA engine fires automatically
+5. **Delta-V Budget**: Each evasion costs ~2.5 kg propellant, recovery burn returns to nominal orbit
+
+### Day/Night Cycle
+- **3D Globe**: DirectionalLight (sun) rotates based on simulation time
+- **2D Map**: Terminator line with 23.5 deg axial tilt overlay
 
 ---
 
 ## API Endpoints
 
 | Method | Endpoint | Description |
-|:-------|:---------|:-----------|
-| GET | `/api/health` | Health check |
-| GET | `/api/visualization/snapshot` | Full dashboard state |
-| GET | `/api/ground-stations` | Ground station network |
-| POST | `/api/telemetry` | Ingest threat/debris objects |
-| POST | `/api/maneuver/schedule` | Schedule evasion burns |
-| POST | `/api/simulate/step` | Advance simulation clock |
+|---|---|---|
+| `GET` | `/api/visualization/snapshot` | Current state: satellites, debris, threats, timeline |
+| `POST` | `/api/simulate/step` | Advance simulation by `step_seconds` |
+| `POST` | `/api/telemetry` | Inject telemetry data (threats, debris) |
+| `GET` | `/api/health` | Backend health check |
+
+### Snapshot Response Schema
+```json
+{
+  "time": 3600,
+  "timestamp": "2026-05-28T12:00:00Z",
+  "satellites": [
+    { "id": "alpha-01", "lat": 28.5, "lon": 77.2, "alt": 550, "velocity": 7.58, "fuel_kg": 47.5 }
+  ],
+  "debris_cloud": [[0, 45.2, -120.3, 580], ...],
+  "threats": [
+    { "id": "DEB-THR-1234", "targetSatId": "alpha-03", "timeToCollision": 7200, "pos": { "lat": 30, "lon": 80, "alt": 555 } }
+  ],
+  "timeline": [
+    { "id": "burn-plan-...", "type": "EVASION", "satId": "alpha-01", "timeStart": 3600, "timeEnd": 4200 }
+  ],
+  "maneuver_count": 4
+}
+```
 
 ---
 
-*Built for the 2026 Orbital Debris Avoidance & Constellation Management System Challenge.*
+## Setup & Installation
+
+### Prerequisites
+- Python 3.10+
+- Node.js 18+
+- PostgreSQL (Neon or Supabase)
+
+### Quick Start
+```powershell
+# Clone
+git clone https://github.com/AridoshikaZu103/Orbital-Debris-Avoidance-Constellation-Management-System.git
+cd Orbital-Debris-Avoidance-Constellation-Management-System
+
+# Backend
+cd backend
+python -m venv .venv
+.\.venv\Scripts\activate
+pip install -r requirements.txt
+cp .env.example .env   # Add DATABASE_URL
+
+# Frontend
+cd ../frontend
+npm install
+
+# Launch both servers
+cd ..
+.\start.ps1
+```
+
+### Environment Variables
+```env
+# backend/.env
+DATABASE_URL=postgresql://user:pass@host:5432/dbname
+```
+
+---
+
+## Project Structure
+
+```
+NATIONAL_SPACE_HACKATHON/
+|-- backend/
+|   |-- main.py              # FastAPI app entry point
+|   |-- routes.py             # API routes + physics engine
+|   |-- state.py              # Global simulation state
+|   |-- database.py           # PostgreSQL connection (Neon)
+|   |-- seed.sql              # Database schema
+|   |-- requirements.txt      # Python dependencies
+|   |-- .env                  # Database credentials
+|
+|-- frontend/
+|   |-- src/
+|   |   |-- App.jsx           # Main dashboard + state management
+|   |   |-- App.css           # Global styles + responsive
+|   |   |-- components/
+|   |   |   |-- LandingPage.jsx/css    # Splash screen + CSS satellite
+|   |   |   |-- EarthGlobe.jsx         # 3D WebGL globe (Three.js)
+|   |   |   |-- GroundTrackMap.jsx/css  # 2D Mercator map (NASA image)
+|   |   |   |-- BullseyePlot.jsx/css   # Conjunction radar
+|   |   |   |-- ProximityView.jsx/css  # Proximity operations radar
+|   |   |   |-- ManeuverGantt.jsx/css  # Maneuver timeline
+|   |   |   |-- ResourceDash.jsx/css   # Fleet fuel dashboard
+|   |   |   |-- HelpTutorial.jsx/css   # Tutorial + toasts + alerts
+|   |-- index.html
+|   |-- vite.config.js
+|
+|-- start.ps1                 # PowerShell launcher (2 terminals)
+|-- vercel.json               # Vercel deployment config
+|-- .gitignore
+|-- README.md
+```
+
+---
+
+## Deployment
+
+### Vercel (Frontend)
+```json
+// vercel.json
+{
+  "buildCommand": "cd frontend && npm install && npm run build",
+  "outputDirectory": "frontend/dist",
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "https://your-backend.onrender.com/api/$1" }
+  ]
+}
+```
+
+### Backend (Render / Railway)
+Deploy `backend/` as a Python web service with:
+```
+Build: pip install -r requirements.txt
+Start: uvicorn main:app --host 0.0.0.0 --port 8000
+```
+
+---
+
+## Ground Station Network
+
+| Station | Location | Lat | Lon |
+|---|---|---|---|
+| IIT Delhi | New Delhi, India | 28.54 N | 77.19 E |
+| Svalbard | Norway (Arctic) | 78.22 N | 15.62 E |
+| Goldstone | California, USA | 35.42 N | 116.89 W |
+| Punta Arenas | Chile | 53.15 S | 70.90 W |
+| ISTRAC | Bangalore, India | 13.03 N | 77.51 E |
+| McMurdo | Antarctica | 77.84 S | 166.66 E |
+
+---
+
+## Constellation Parameters
+
+| Parameter | Value |
+|---|---|
+| Formation | Walker Delta 6/6/1 |
+| Altitude | 550 km (LEO) |
+| Inclination | 51.6 deg |
+| Orbital Period | ~95.6 min |
+| Velocity | ~7.58 km/s |
+| Propellant | 50 kg hydrazine per satellite |
+| Debris Tracked | 518 objects |
+| Propagator | RK4 (4th-order Runge-Kutta) |
+
+---
+
+## License
+
+MIT License. Built for the National Space Hackathon 2026.
