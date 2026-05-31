@@ -194,18 +194,19 @@
   font-family: monospace;
 }
 
-/* ── Toast Notifications (top-center) ── */
+/* ── Toast Notifications (top-right on desktop) ── */
 .toast-container {
   position: fixed;
   top: 16px;
-  left: 50%;
-  transform: translateX(-50%);
+  right: 16px;
+  left: auto;
+  transform: none;
   z-index: 9998;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-width: 420px;
-  width: 90%;
+  max-width: 360px;
+  width: 360px;
   pointer-events: none;
 }
 
