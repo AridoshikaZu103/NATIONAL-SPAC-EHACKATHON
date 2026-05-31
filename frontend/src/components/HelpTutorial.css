@@ -522,3 +522,127 @@
   margin: 0 0 20px;
   font-family: monospace;
 }
+
+/* ── Mobile Responsive ── */
+@media (max-width: 768px) {
+  .help-modal {
+    padding: 20px;
+    max-width: 95vw;
+    border-radius: 14px;
+    max-height: 80vh;
+  }
+
+  .help-icon {
+    font-size: 2rem;
+    margin-bottom: 10px;
+  }
+
+  .help-title {
+    font-size: 1.05rem;
+  }
+
+  .help-subtitle {
+    font-size: 0.7rem;
+  }
+
+  .help-body {
+    font-size: 0.78rem;
+    line-height: 1.6;
+  }
+
+  .help-body .key {
+    font-size: 0.7rem;
+    padding: 1px 7px;
+  }
+
+  .help-what {
+    font-size: 0.6rem;
+    margin: 12px 0 4px;
+    padding: 3px 0 3px 8px;
+  }
+
+  .help-btn {
+    padding: 8px 16px;
+    font-size: 0.7rem;
+    border-radius: 8px;
+  }
+
+  .help-dot {
+    width: 8px;
+    height: 8px;
+  }
+
+  .help-step-indicator {
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+
+  .help-nav {
+    margin-top: 16px;
+  }
+
+  .help-page-num {
+    font-size: 0.65rem;
+  }
+
+  /* Toast mobile */
+  .toast-container {
+    max-width: 95vw;
+  }
+
+  .toast {
+    font-size: 0.72rem;
+    padding: 10px 14px;
+    border-radius: 10px;
+  }
+
+  /* Threat alert mobile */
+  .threat-alert-box {
+    padding: 24px 20px;
+    max-width: 90vw;
+    border-radius: 14px;
+  }
+
+  .threat-alert-icon {
+    width: 48px;
+    height: 48px;
+    font-size: 1.6rem;
+  }
+
+  .threat-alert-title {
+    font-size: 1rem;
+    letter-spacing: 2px;
+  }
+
+  .threat-alert-target {
+    font-size: 0.8rem;
+  }
+
+  .threat-alert-tca span {
+    font-size: 0.95rem;
+  }
+
+  /* Report modal mobile */
+  .report-modal {
+    padding: 16px;
+    max-width: 95vw;
+    border-radius: 14px;
+  }
+
+  .report-title {
+    font-size: 0.95rem;
+  }
+
+  .report-section h4 {
+    font-size: 0.7rem;
+  }
+
+  .report-table {
+    font-size: 0.65rem;
+  }
+
+  .report-table th,
+  .report-table td {
+    padding: 4px 6px;
+  }
+}
