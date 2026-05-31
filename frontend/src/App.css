@@ -976,6 +976,16 @@ body {
     width: auto;
   }
 
+  .speed-presets {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .speed-btn {
+    padding: 5px 10px;
+    font-size: 0.6rem;
+  }
+
   .sim-clock {
     flex-direction: row;
     gap: 6px;
