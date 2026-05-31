@@ -141,7 +141,7 @@ export default function App() {
       id: 'DEB-THR-' + Math.floor(Math.random() * 9000 + 1000),
       type: 'THREAT',
       targetSatId: targetId,
-      timeToCollision: 7200 + Math.random() * 7200
+      timeToCollision: 86400 + Math.random() * 86400
     };
     // 5-second countdown
     setSpawnCountdown(5);
@@ -176,7 +176,7 @@ export default function App() {
     setIsAutoMode(next);
     // Auto ON also resumes polling if paused
     if (next && isPaused) setIsPaused(false);
-    addToast('info', next ? 'AUTO ON' : 'AUTO OFF', next ? 'Auto-stepping every ' + (autoSpeed/1000) + 's' : 'Manual mode.');
+    addToast('info', next ? 'AUTO ON' : 'AUTO OFF', next ? 'Auto-stepping at ' + speedLabel : 'Manual mode.');
   };
 
   const dismissToast = (id) => setToasts(prev => prev.filter(t => t.id !== id));
