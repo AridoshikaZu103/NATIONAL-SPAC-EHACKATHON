@@ -1125,13 +1125,15 @@ body {
     right: 14px;
   }
 
-  /* Toast on mobile — full width */
+  /* Toast on mobile — bottom center */
   .toast-container {
     top: auto;
-    bottom: 60px;
-    right: 10px;
-    left: 10px;
-    max-width: 100%;
+    bottom: 70px;
+    right: auto;
+    left: 50%;
+    transform: translateX(-50%);
+    max-width: 92vw;
+    width: 92vw;
   }
 
   .toast {
