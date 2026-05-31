@@ -38,6 +38,24 @@ export default function App() {
   const [isAutoMode, setIsAutoMode] = useState(false);
   const [stepSize, setStepSize] = useState(3600);
   const [autoSpeed, setAutoSpeed] = useState(2000);
+  const [speedLabel, setSpeedLabel] = useState('1x');
+
+  // Speed presets: label → { stepSize (seconds), interval (ms) }
+  const SPEED_PRESETS = {
+    '1x':   { step: 60,    interval: 2000 },
+    '5x':   { step: 300,   interval: 2000 },
+    '10x':  { step: 600,   interval: 1500 },
+    '50x':  { step: 3600,  interval: 1500 },
+    '100x': { step: 7200,  interval: 1000 },
+    'MAX':  { step: 86400, interval: 800  },
+  };
+
+  const setSpeed = (label) => {
+    const preset = SPEED_PRESETS[label];
+    setSpeedLabel(label);
+    setStepSize(preset.step);
+    setAutoSpeed(preset.interval);
+  };
 
   // UI
   const [showHelp, setShowHelp] = useState(false);
@@ -218,10 +236,17 @@ export default function App() {
               <option value={86400}>1 day</option>
             </select>
           </div>
-          <div className="speed-group">
+          <div className="speed-group speed-presets">
             <label>Speed:</label>
-            <input type="range" min="500" max="5000" step="500" value={autoSpeed} onChange={(e) => setAutoSpeed(Number(e.target.value))} />
-            <span>{(autoSpeed / 1000).toFixed(1)}s</span>
+            {Object.keys(SPEED_PRESETS).map((label) => (
+              <button
+                key={label}
+                className={'speed-btn' + (speedLabel === label ? ' active' : '')}
+                onClick={() => setSpeed(label)}
+              >
+                {label}
+              </button>
+            ))}
           </div>
           <div className="sim-clock">
             <span className="clock-label">SIM CLOCK</span>

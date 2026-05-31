@@ -433,6 +433,36 @@ body {
   accent-color: var(--neon-blue);
 }
 
+.speed-presets {
+  gap: 4px;
+}
+
+.speed-btn {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--glass-border);
+  color: #666;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  font-family: 'Outfit', monospace;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  letter-spacing: 0.5px;
+}
+
+.speed-btn:hover {
+  border-color: var(--neon-blue);
+  color: var(--neon-blue);
+}
+
+.speed-btn.active {
+  background: rgba(0, 229, 255, 0.15);
+  border-color: var(--neon-blue);
+  color: var(--neon-blue);
+  box-shadow: 0 0 8px rgba(0, 229, 255, 0.3);
+}
+
 .sim-clock {
   display: flex;
   flex-direction: column;
